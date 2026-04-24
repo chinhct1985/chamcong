@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "description": "ChamCong — User chấm công (nhiều Loại CC/ngày), option do admin quản lý",
+  "entities": [
+    {
+      "name": "User",
+      "table": "User",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "fullName", "type": "string" },
+        { "name": "phone", "type": "string", "unique": true },
+        { "name": "passwordHash", "type": "string" },
+        { "name": "isActive", "type": "boolean", "default": true },
+        { "name": "isManager", "type": "boolean", "default": false, "description": "Quản lý" },
+        { "name": "createdAt", "type": "datetime" },
+        { "name": "updatedAt", "type": "datetime" },
+        { "name": "submitLogs", "type": "relation", "description": "Log gửi chấm công thành công" }
+      ]
+    },
+    {
+      "name": "PublicHoliday",
+      "table": "PublicHoliday",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "date", "type": "date", "unique": true, "description": "Một ngày lễ" },
+        { "name": "name", "type": "string", "optional": true, "description": "Ghi chú" },
+        { "name": "createdAt", "type": "datetime" },
+        { "name": "updatedAt", "type": "datetime" }
+      ]
+    },
+    {
+      "name": "DropdownOption",
+      "table": "DropdownOption",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "label", "type": "string", "description": "Mã" },
+        { "name": "name", "type": "string", "description": "Tên loại CC (hiển thị)" },
+        { "name": "sortOrder", "type": "int", "default": 0 },
+        { "name": "isActive", "type": "boolean", "default": true },
+        { "name": "createdAt", "type": "datetime" }
+      ]
+    },
+    {
+      "name": "AttendanceEntry",
+      "table": "AttendanceEntry",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "userId", "type": "string", "fk": "User.id" },
+        { "name": "date", "type": "date" },
+        { "name": "optionId", "type": "string", "fk": "DropdownOption.id" },
+        { "name": "codeSuffix", "type": "string", "optional": true, "description": "Ví dụ /2 khi gửi 2 loại — hiển thị: label+codeSuffix" },
+        { "name": "createdAt", "type": "datetime" }
+      ],
+      "uniqueConstraints": [["userId", "date", "optionId"]]
+    },
+    {
+      "name": "AttendanceSubmitLog",
+      "table": "AttendanceSubmitLog",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "userId", "type": "string", "fk": "User.id" },
+        { "name": "message", "type": "string", "description": "Câu log: ngày đầu=ngày chấm; ... vào lúc HH:mm:ss + ngày thực tế (HCM)" },
+        { "name": "date", "type": "date", "description": "Ngày chấm tương ứng" },
+        { "name": "createdAt", "type": "datetime" }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "AttendanceEntry.userId", "to": "User.id", "kind": "many-to-one", "onDelete": "cascade" },
+    { "from": "AttendanceEntry.optionId", "to": "DropdownOption.id", "kind": "many-to-one", "onDelete": "restrict" },
+    { "from": "AttendanceSubmitLog.userId", "to": "User.id", "kind": "many-to-one", "onDelete": "cascade" }
+  ]
+}

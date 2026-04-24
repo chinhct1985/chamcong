@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: chamcong-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chamcong
+    ports:
+      # Host 3041 → Postgres 5432 trong container (tránh trùng cổng project khác)
+      - "3041:5432"
+    volumes:
+      - chamcong_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chamcong"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  chamcong_pgdata:

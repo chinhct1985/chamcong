@@ -1,0 +1,50 @@
+{
+  "name": "chamcong-next",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "node node_modules/prisma/build/index.js generate",
+    "dev": "next dev -H 0.0.0.0 -p 3040 --webpack",
+    "dev:clean": "rm -rf .next && next dev -H 0.0.0.0 -p 3040 --webpack",
+    "dev:restart": "bash scripts/restart-dev.sh",
+    "dev:turbo": "next dev -H 0.0.0.0 -p 3040 --turbopack",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3040",
+    "lint": "eslint",
+    "smoke:auth": "node scripts/smoke-auth.mjs",
+    "check:domain": "node scripts/check-public-request.mjs",
+    "db:generate": "node node_modules/prisma/build/index.js generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:apply-loai-cc": "tsx scripts/apply-loai-cc.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@paralleldrive/cuid2": "^3.3.0",
+    "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
+    "exceljs": "^4.4.0",
+    "jose": "^6.2.2",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "sonner": "^2.0.7",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}

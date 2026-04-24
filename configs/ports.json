@@ -1,0 +1,6 @@
+{
+  "description": "Cổng dịch vụ ChamCong (host). Đổi tại đây + package.json + docker-compose + .env cho đồng bộ.",
+  "nextHttp": 3040,
+  "postgresHost": 3041,
+  "postgresContainer": 5432
+}
