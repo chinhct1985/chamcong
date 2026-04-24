@@ -31,6 +31,7 @@ export default async function HomePage() {
       phone: true,
       isActive: true,
       isManager: true,
+      employeeType: { select: { name: true } },
     },
   });
   if (!user?.isActive) redirect("/login");
@@ -50,6 +51,7 @@ export default async function HomePage() {
   return (
     <HomeForm
       initialFullName={user.fullName}
+      initialEmployeeTypeName={user.employeeType?.name ?? null}
       initialPhone={user.phone}
       initialIsManager={Boolean(user.isManager)}
       initialDateYmd={initialDateYmd}

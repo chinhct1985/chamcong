@@ -11,25 +11,41 @@ type UserRow = {
   phone: string;
   isActive: boolean;
   isManager: boolean;
+  employeeTypeId: string | null;
+  employeeTypeName: string | null;
+  employeeTypeSortOrder: number | null;
   createdAt: string;
   /** Chuỗi thời gian tạo TK — do server/Intl cố định, tránh lệch hydration. */
   createdAtLabel: string;
 };
 
-export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
+type EmpTypeOpt = { id: string; name: string; sortOrder: number };
+
+export function AdminUsersPanel({
+  initialUsers,
+  initialEmployeeTypes,
+}: {
+  initialUsers: UserRow[];
+  initialEmployeeTypes: EmpTypeOpt[];
+}) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
+  const [employeeTypes] = useState<EmpTypeOpt[]>(() =>
+    [...initialEmployeeTypes].sort((a, b) => a.sortOrder - b.sortOrder)
+  );
   const [loading, setLoading] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editManager, setEditManager] = useState(false);
+  const [editEmployeeTypeId, setEditEmployeeTypeId] = useState("");
   const [passwordFor, setPasswordFor] = useState<UserRow | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [addFullName, setAddFullName] = useState("");
   const [addPhone, setAddPhone] = useState("");
   const [addPassword, setAddPassword] = useState("");
+  const [addEmployeeTypeId, setAddEmployeeTypeId] = useState("");
   const [addIsManager, setAddIsManager] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -38,6 +54,7 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
     setAddFullName("");
     setAddPhone("");
     setAddPassword("");
+    setAddEmployeeTypeId("");
     setAddIsManager(false);
   }, []);
 
@@ -78,9 +95,21 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
         toast.error("Dữ liệu không hợp lệ");
         return;
       }
+      type ApiUser = UserRow & {
+        employeeType?: { id: string; name: string; sortOrder: number } | null;
+      };
       setUsers(
-        (data.users as UserRow[]).map((u) => ({
-          ...u,
+        (data.users as ApiUser[]).map((u) => ({
+          id: u.id,
+          fullName: u.fullName,
+          phone: u.phone,
+          isActive: u.isActive,
+          isManager: u.isManager,
+          employeeTypeId: u.employeeTypeId ?? u.employeeType?.id ?? null,
+          employeeTypeName: u.employeeType?.name ?? u.employeeTypeName ?? null,
+          employeeTypeSortOrder:
+            u.employeeType?.sortOrder ?? u.employeeTypeSortOrder ?? null,
+          createdAt: u.createdAt,
           createdAtLabel: formatDateTimeHcm(u.createdAt),
         }))
       );
@@ -97,6 +126,7 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
     setEditName(u.fullName);
     setEditPhone(u.phone);
     setEditManager(u.isManager);
+    setEditEmployeeTypeId(u.employeeTypeId ?? "");
   }
 
   function startSetPassword(u: UserRow) {
@@ -151,6 +181,10 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
   }
 
   async function saveUser(id: string) {
+    if (!editEmployeeTypeId) {
+      toast.error("Chọn loại nhân viên");
+      return;
+    }
     const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
       method: "PATCH",
       credentials: "include",
@@ -159,6 +193,7 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
         fullName: editName.trim(),
         phone: editPhone.trim(),
         isManager: editManager,
+        employeeTypeId: editEmployeeTypeId,
       }),
     });
     const data = (await res.json()) as { error?: string };
@@ -194,6 +229,10 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
   async function submitAddUser(e: React.FormEvent) {
     e.preventDefault();
     if (adding) return;
+    if (!addEmployeeTypeId) {
+      toast.error("Chọn loại nhân viên");
+      return;
+    }
     setAdding(true);
     try {
       const res = await fetch("/api/admin/users", {
@@ -204,6 +243,7 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
           fullName: addFullName.trim(),
           phone: addPhone.trim(),
           password: addPassword,
+          employeeTypeId: addEmployeeTypeId,
           isManager: addIsManager,
         }),
       });
@@ -385,6 +425,27 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
                     inputMode="numeric"
                   />
                 </div>
+                <div className="form-field min-w-0">
+                  <label
+                    htmlFor={`edit-emp-type-m-${u.id}`}
+                    className="form-label"
+                  >
+                    Loại nhân viên
+                  </label>
+                  <select
+                    id={`edit-emp-type-m-${u.id}`}
+                    className="form-control w-full"
+                    value={editEmployeeTypeId}
+                    onChange={(e) => setEditEmployeeTypeId(e.target.value)}
+                  >
+                    <option value="">— Chọn —</option>
+                    {employeeTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
@@ -422,6 +483,16 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
                   </span>
                 </p>
                 <p className="mt-1 font-mono text-sm text-slate-700">{u.phone}</p>
+                {u.employeeTypeName ? (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Loại:{" "}
+                    <span className="font-medium text-slate-800">
+                      {u.employeeTypeName}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-amber-700">Chưa gán loại nhân viên</p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   {u.isManager ? (
                     <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800">
@@ -481,11 +552,14 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
         ))}
       </ul>
       <div className="hidden w-full min-w-0 max-w-full overflow-x-auto md:block">
-        <table className="w-full min-w-[52rem] text-left text-sm">
+        <table className="w-full min-w-[60rem] text-left text-sm">
         <thead className="table-head">
           <tr>
             <th className="whitespace-nowrap py-3 pl-2 pr-3 text-left font-semibold">
               Họ tên
+            </th>
+            <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
+              Loại NV
             </th>
             <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
               Số điện thoại
@@ -527,6 +601,35 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
                   >
                     {u.fullName}
                   </span>
+                )}
+              </td>
+              <td className="table-cell max-w-[12rem]">
+                {editId === u.id ? (
+                  <div className="flex flex-col gap-2">
+                    <label
+                      htmlFor={`edit-emp-type-${u.id}`}
+                      className="form-label"
+                    >
+                      Loại nhân viên
+                    </label>
+                    <select
+                      id={`edit-emp-type-${u.id}`}
+                      className="form-control max-w-[14rem] py-1 text-sm"
+                      value={editEmployeeTypeId}
+                      onChange={(e) => setEditEmployeeTypeId(e.target.value)}
+                    >
+                      <option value="">— Chọn —</option>
+                      {employeeTypes.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : u.employeeTypeName ? (
+                  <span className="text-slate-800">{u.employeeTypeName}</span>
+                ) : (
+                  <span className="text-amber-700">—</span>
                 )}
               </td>
               <td className="table-cell">
@@ -708,6 +811,30 @@ export function AdminUsersPanel({ initialUsers }: { initialUsers: UserRow[] }) {
                     required
                     disabled={adding}
                   />
+                </div>
+                <div className="form-field sm:col-span-2">
+                  <label htmlFor="add-emp-type" className="form-label">
+                    Loại nhân viên
+                  </label>
+                  <select
+                    id="add-emp-type"
+                    className="form-control w-full max-w-md"
+                    value={addEmployeeTypeId}
+                    onChange={(e) => setAddEmployeeTypeId(e.target.value)}
+                    required
+                    disabled={adding || employeeTypes.length === 0}
+                  >
+                    <option value="">
+                      {employeeTypes.length === 0
+                        ? "— Chưa có loại —"
+                        : "— Chọn —"}
+                    </option>
+                    {employeeTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-field sm:col-span-2">
                   <label htmlFor="add-password" className="form-label">

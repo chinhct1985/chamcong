@@ -15,6 +15,7 @@ const patchUserSchema = z
     phone: z.string().optional(),
     isActive: z.boolean().optional(),
     isManager: z.boolean().optional(),
+    employeeTypeId: z.union([z.string().min(1), z.null()]).optional(),
     /** Admin đặt mật khẩu mới, không cần mật khẩu cũ. */
     newPassword: z
       .string()
@@ -63,16 +64,28 @@ export const adminUserSelect = {
   phone: true,
   isActive: true,
   isManager: true,
+  employeeTypeId: true,
+  employeeType: {
+    select: { id: true, name: true, sortOrder: true },
+  },
   createdAt: true,
 } as const;
 
 export type AdminUserRow = Prisma.UserGetPayload<{ select: typeof adminUserSelect }>;
 
 export async function adminListUsers(): Promise<AdminUserRow[]> {
-  return prisma.user.findMany({
-    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+  const rows = await prisma.user.findMany({
     select: adminUserSelect,
   });
+  rows.sort((a, b) => {
+    const ao = a.employeeType?.sortOrder ?? 999_999;
+    const bo = b.employeeType?.sortOrder ?? 999_999;
+    if (ao !== bo) return ao - bo;
+    const c = a.fullName.localeCompare(b.fullName, "vi");
+    if (c !== 0) return c;
+    return a.id.localeCompare(b.id);
+  });
+  return rows;
 }
 
 export async function adminCreateUser(
@@ -86,7 +99,14 @@ export async function adminCreateUser(
     const msg = parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ";
     return { ok: false, error: msg, status: 400 };
   }
-  const { fullName, phone, password, isManager } = parsed.data;
+  const { fullName, phone, password, isManager, employeeTypeId } = parsed.data;
+  const typeOk = await prisma.employeeType.findUnique({
+    where: { id: employeeTypeId },
+    select: { id: true },
+  });
+  if (!typeOk) {
+    return { ok: false, error: "Loại nhân viên không hợp lệ", status: 400 };
+  }
   try {
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -96,6 +116,7 @@ export async function adminCreateUser(
         passwordHash,
         isManager: isManager ?? false,
         isActive: true,
+        employeeType: { connect: { id: employeeTypeId } },
       },
       select: adminUserSelect,
     });
@@ -135,6 +156,20 @@ export async function adminPatchUser(
   }
   if (d.newPassword !== undefined) {
     updateData.passwordHash = await bcrypt.hash(d.newPassword, 10);
+  }
+  if (d.employeeTypeId !== undefined) {
+    if (d.employeeTypeId === null) {
+      updateData.employeeType = { disconnect: true };
+    } else {
+      const typeOk = await prisma.employeeType.findUnique({
+        where: { id: d.employeeTypeId },
+        select: { id: true },
+      });
+      if (!typeOk) {
+        return { ok: false, error: "Loại nhân viên không hợp lệ", status: 400 };
+      }
+      updateData.employeeType = { connect: { id: d.employeeTypeId } };
+    }
   }
 
   if (Object.keys(updateData).length === 0) {
@@ -290,5 +325,91 @@ export async function adminDeleteOption(id: string): Promise<
     return { ok: true, soft: false };
   } catch {
     return { ok: false, error: "Không tìm thấy Loại CC", status: 404 };
+  }
+}
+
+const employeeTypeCreateSchema = z.object({
+  name: z.string().trim().min(1, "Tên không được để trống"),
+  sortOrder: z.number().int().optional(),
+});
+
+const employeeTypePatchSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export async function listEmployeeTypesPublic() {
+  return prisma.employeeType.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, sortOrder: true },
+  });
+}
+
+export async function adminListEmployeeTypes() {
+  return prisma.employeeType.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+}
+
+export async function adminCreateEmployeeType(body: unknown): Promise<
+  | { ok: true; row: { id: string; name: string; sortOrder: number } }
+  | { ok: false; error: string; status: number }
+> {
+  const parsed = employeeTypeCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ";
+    return { ok: false, error: msg, status: 400 };
+  }
+  const { name, sortOrder } = parsed.data;
+  const row = await prisma.employeeType.create({
+    data: { name, sortOrder: sortOrder ?? 0 },
+    select: { id: true, name: true, sortOrder: true },
+  });
+  return { ok: true, row };
+}
+
+export async function adminPatchEmployeeType(
+  id: string,
+  body: unknown
+): Promise<
+  | { ok: true; row: { id: string; name: string; sortOrder: number } }
+  | { ok: false; error: string; status: number }
+> {
+  const parsed = employeeTypePatchSchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, error: "Dữ liệu không hợp lệ", status: 400 };
+  }
+  const data = parsed.data;
+  if (Object.keys(data).length === 0) {
+    return { ok: false, error: "Không có dữ liệu cập nhật", status: 400 };
+  }
+  try {
+    const row = await prisma.employeeType.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, sortOrder: true },
+    });
+    return { ok: true, row };
+  } catch {
+    return { ok: false, error: "Không tìm thấy loại nhân viên", status: 404 };
+  }
+}
+
+export async function adminDeleteEmployeeType(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  const n = await prisma.user.count({ where: { employeeTypeId: id } });
+  if (n > 0) {
+    return {
+      ok: false,
+      error: `Không xóa được — còn ${n} nhân viên đang dùng loại này`,
+      status: 409,
+    };
+  }
+  try {
+    await prisma.employeeType.delete({ where: { id } });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Không tìm thấy loại nhân viên", status: 404 };
   }
 }

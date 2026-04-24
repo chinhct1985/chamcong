@@ -20,12 +20,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  const { fullName, phone, password } = parsed.data;
+  const { fullName, phone, password, employeeTypeId } = parsed.data;
+
+  const typeOk = await prisma.employeeType.findUnique({
+    where: { id: employeeTypeId },
+    select: { id: true },
+  });
+  if (!typeOk) {
+    return NextResponse.json(
+      { error: "Loại nhân viên không hợp lệ — tải lại trang" },
+      { status: 400 }
+    );
+  }
 
   try {
     const hash = await bcrypt.hash(password, 10);
     await prisma.user.create({
-      data: { fullName, phone, passwordHash: hash },
+      data: {
+        fullName,
+        phone,
+        passwordHash: hash,
+        employeeType: { connect: { id: employeeTypeId } },
+      },
     });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {

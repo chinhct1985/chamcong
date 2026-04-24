@@ -44,6 +44,7 @@ export const registerSchema = z.object({
     .transform((s) => formatFullNameTitleCase(s)),
   phone: phoneFieldSchema,
   password: z.string().min(6, "Mật khẩu ít nhất 6 ký tự"),
+  employeeTypeId: z.string().min(1, "Chọn loại nhân viên"),
 });
 
 export const loginSchema = z.object({

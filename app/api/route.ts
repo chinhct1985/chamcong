@@ -6,6 +6,7 @@ export async function GET() {
     name: "chamcong-next",
     endpoints: [
       "POST /api/register",
+      "GET /api/employee-types",
       "POST /api/login",
       "POST /api/logout",
       "GET /api/me",
@@ -16,6 +17,8 @@ export async function GET() {
       "POST /api/admin/logout",
       "GET /api/admin/users",
       "PATCH/DELETE /api/admin/users/[id]",
+      "GET/POST /api/admin/employee-types",
+      "PATCH/DELETE /api/admin/employee-types/[id]",
       "GET/POST /api/admin/options",
       "PATCH/DELETE /api/admin/options/[id]",
       "GET /api/health",

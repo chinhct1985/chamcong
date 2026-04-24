@@ -106,8 +106,17 @@ export async function buildManagerMonthAttendanceMatrix(
 
   const users = await prisma.user.findMany({
     where: { isActive: true },
-    orderBy: { fullName: "asc" },
-    select: { id: true, fullName: true },
+    select: {
+      id: true,
+      fullName: true,
+      employeeType: { select: { sortOrder: true } },
+    },
+  });
+  users.sort((a, b) => {
+    const ao = a.employeeType?.sortOrder ?? 999_999;
+    const bo = b.employeeType?.sortOrder ?? 999_999;
+    if (ao !== bo) return ao - bo;
+    return a.fullName.localeCompare(b.fullName, "vi");
   });
 
   const entries = await prisma.$queryRaw<

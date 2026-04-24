@@ -6,20 +6,36 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function RegisterForm() {
+type EtOpt = { id: string; name: string; sortOrder: number };
+
+export function RegisterForm({
+  initialEmployeeTypes = [],
+}: {
+  initialEmployeeTypes?: EtOpt[];
+}) {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [employeeTypeId, setEmployeeTypeId] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submitRegister() {
+    if (!employeeTypeId) {
+      toast.error("Chọn loại nhân viên");
+      return;
+    }
     setPending(true);
     try {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, phone, password }),
+        body: JSON.stringify({
+          fullName,
+          phone,
+          password,
+          employeeTypeId,
+        }),
         credentials: "include",
       });
 
@@ -64,6 +80,11 @@ export function RegisterForm() {
     void submitRegister();
   }
 
+  const typeOptions =
+    initialEmployeeTypes.length > 0
+      ? [...initialEmployeeTypes].sort((a, b) => a.sortOrder - b.sortOrder)
+      : [];
+
   return (
     <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-md flex-col justify-center px-4 py-12">
       <div className="card">
@@ -73,7 +94,7 @@ export function RegisterForm() {
           </p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">Đăng ký</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Tạo tài khoản bằng họ tên, số điện thoại và mật khẩu
+            Tạo tài khoản bằng họ tên, loại nhân viên, số điện thoại và mật khẩu
           </p>
         </div>
 
@@ -97,6 +118,31 @@ export function RegisterForm() {
               placeholder="Nguyễn Văn A"
               required
             />
+          </div>
+          <div className="form-field">
+            <label htmlFor="reg-emp-type" className="form-label">
+              Loại nhân viên
+            </label>
+            <select
+              id="reg-emp-type"
+              name="employeeTypeId"
+              className="form-control"
+              value={employeeTypeId}
+              onChange={(e) => setEmployeeTypeId(e.target.value)}
+              required
+              disabled={typeOptions.length === 0}
+            >
+              <option value="">
+                {typeOptions.length === 0
+                  ? "— Chưa cấu hình loại NV (liên hệ admin) —"
+                  : "— Chọn —"}
+              </option>
+              {typeOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="form-field">
             <label htmlFor="reg-phone" className="form-label">
@@ -130,7 +176,11 @@ export function RegisterForm() {
               required
             />
           </div>
-          <button type="submit" disabled={pending} className="btn-primary mt-1 w-full">
+          <button
+            type="submit"
+            disabled={pending || typeOptions.length === 0}
+            className="btn-primary mt-1 w-full"
+          >
             {pending ? "Đang xử lý…" : "Đăng ký"}
           </button>
         </form>

@@ -53,6 +53,12 @@ export function AdminNav({
           <Link href="/admin/users" className={linkCls("/admin/users")}>
             Nhân viên
           </Link>
+          <Link
+            href="/admin/employee-types"
+            className={linkCls("/admin/employee-types")}
+          >
+            Loại nhân viên
+          </Link>
           <Link href="/admin/options" className={linkCls("/admin/options")}>
             {optionsNavLabel}
           </Link>

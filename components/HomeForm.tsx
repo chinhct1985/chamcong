@@ -72,6 +72,7 @@ async function fetchMonthEntriesApi(
 
 export function HomeForm({
   initialFullName,
+  initialEmployeeTypeName,
   initialPhone,
   initialIsManager,
   initialDateYmd,
@@ -81,6 +82,8 @@ export function HomeForm({
   initialListMonth,
 }: {
   initialFullName: string;
+  /** Tên loại nhân viên — hiển thị sau họ tên, ví dụ: Nguyễn Văn A (NHS). */
+  initialEmployeeTypeName: string | null;
   initialPhone: string;
   initialIsManager: boolean;
   /** Ngày mặc định form (YYYY-MM-DD) khớp server — không dùng `new Date()` trong useState. */
@@ -340,7 +343,12 @@ export function HomeForm({
           <h1 className="mt-1 text-2xl font-bold text-slate-900">Xin chào</h1>
           <p className="mt-2 text-sm text-slate-600">
             Họ tên:{" "}
-            <span className="font-semibold text-slate-900">{initialFullName}</span>
+            <span className="font-semibold text-slate-900">
+              {initialFullName}
+              {initialEmployeeTypeName
+                ? ` (${initialEmployeeTypeName})`
+                : null}
+            </span>
           </p>
           <p className="text-sm text-slate-600">
             Số điện thoại:{" "}

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/RegisterForm";
 import { verifyUserToken } from "@/lib/auth";
 import { AUTH_COOKIE_NAME } from "@/lib/constants";
+import { listEmployeeTypesPublic } from "@/lib/admin-operations";
 
 export const metadata = { title: "Đăng ký — Chấm công" };
 export const dynamic = "force-dynamic";
@@ -18,5 +19,6 @@ export default async function RegisterPage() {
       /* hiển thị form */
     }
   }
-  return <RegisterForm />;
+  const employeeTypes = await listEmployeeTypesPublic();
+  return <RegisterForm initialEmployeeTypes={employeeTypes} />;
 }

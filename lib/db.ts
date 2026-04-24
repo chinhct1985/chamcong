@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
 /** Đổi tên khi thêm model Prisma — tránh dùng instance cũ trong `next dev` (thiếu delegate mới). */
-const PRISMA_GLOBAL_KEY = "__chamcong_prisma_client_v3__" as const;
+const PRISMA_GLOBAL_KEY = "__chamcong_prisma_client_v4__" as const;
 
 const globalForPrisma = globalThis as unknown as {
   [PRISMA_GLOBAL_KEY]?: ReturnType<typeof createPrismaClient>;
@@ -22,11 +22,14 @@ function createPrismaClient() {
         : ["error"],
   });
 
-  const hasDelegate = (c: { publicHoliday?: unknown }) => c.publicHoliday != null;
+  const hasDelegates = (c: {
+    publicHoliday?: unknown;
+    employeeType?: unknown;
+  }) => c.publicHoliday != null && c.employeeType != null;
 
-  if (!hasDelegate(base)) {
+  if (!hasDelegates(base)) {
     throw new Error(
-      "Prisma Client thiếu model PublicHoliday. Chạy: npx prisma generate — sau đó xóa thư mục .next và chạy lại npm run dev (hoặc dev:restart).",
+      "Prisma Client lệch schema (thiếu PublicHoliday hoặc EmployeeType). Chạy: npx prisma generate — xóa .next — chạy lại npm run dev (hoặc npm run dev:restart).",
     );
   }
 
@@ -52,7 +55,7 @@ function createPrismaClient() {
     },
   });
 
-  if (!hasDelegate(ext as { publicHoliday?: unknown })) {
+  if (!hasDelegates(ext as { publicHoliday?: unknown; employeeType?: unknown })) {
     return base;
   }
   return ext;
