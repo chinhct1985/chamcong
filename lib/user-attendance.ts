@@ -1,7 +1,9 @@
 import { createId } from "@paralleldrive/cuid2";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { buildAttendanceSubmitLogMessage } from "@/lib/attendance-submit-log";
+import { computeTheoDoiBuMetricsForByDay } from "@/lib/manager-month-excel";
 import { prisma } from "@/lib/db";
+import { getPublicHolidayYmdSetForMonth } from "@/lib/public-holiday";
 import { submitBatchSchema, submitSchema } from "@/lib/validation";
 
 function prismaErrorToMessage(e: unknown): string {
@@ -94,7 +96,32 @@ export async function listAttendanceEntriesForMonth(
 }
 
 /** Ma trận chấm công cả tháng cho mọi user active; dùng xuất Excel (quản lý). */
-export type ManagerMonthMatrixRow = { fullName: string; byDay: string[] };
+export type ManagerMonthMatrixRow = {
+  userId: string;
+  fullName: string;
+  byDay: string[];
+};
+
+/** Mỗi tháng từ 1/(exportYear-1) đến hết tháng trước tháng xuất (inclusive) — tính dư «Bù còn lại» cuối tháng trước tháng xuất. */
+function eachYmFromTo(
+  yStart: number,
+  mStart: number,
+  yEnd: number,
+  mEnd: number
+): { y: number; m: number }[] {
+  const r: { y: number; m: number }[] = [];
+  let y = yStart;
+  let m = mStart;
+  while (y < yEnd || (y === yEnd && m <= mEnd)) {
+    r.push({ y, m });
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return r;
+}
 
 export async function buildManagerMonthAttendanceMatrix(
   year: number,
@@ -155,10 +182,106 @@ export async function buildManagerMonthAttendanceMatrix(
     for (let d = 1; d <= daysInMonth; d++) {
       byDay.push(dayMap?.get(d) ?? "");
     }
-    return { fullName: u.fullName, byDay };
+    return { userId: u.id, fullName: u.fullName, byDay };
   });
 
   return { daysInMonth, rows };
+}
+
+/**
+ * Cột «Bù còn lại tháng trước» (sheet 2): = «Bù còn lại» cuối tháng trước tháng xuất.
+ * Tích lũy từ 1/1 (năm xuất − 1) đến hết tháng (m−1) năm xuất; cùng công thức
+ * G = C + Tổng bù phát sinh − Bù sử dụng, C đầu năm (năm xuất−1) = 0.
+ */
+export async function computeBuConLaiKetThangTruocTheoNguoi(
+  exportY: number,
+  exportM: number
+): Promise<Map<string, number>> {
+  if (exportM < 1 || exportM > 12) {
+    return new Map();
+  }
+
+  const yEnd = exportM === 1 ? exportY - 1 : exportY;
+  const mEnd = exportM === 1 ? 12 : exportM - 1;
+  const months = eachYmFromTo(exportY - 1, 1, yEnd, mEnd);
+
+  const users = await prisma.user.findMany({
+    where: { isActive: true },
+    select: { id: true, fullName: true, employeeType: { select: { sortOrder: true } } },
+  });
+  users.sort((a, b) => {
+    const ao = a.employeeType?.sortOrder ?? 999_999;
+    const bo = b.employeeType?.sortOrder ?? 999_999;
+    if (ao !== bo) return ao - bo;
+    return a.fullName.localeCompare(b.fullName, "vi");
+  });
+  if (users.length === 0) return new Map();
+
+  if (months.length === 0) {
+    return new Map(users.map((u) => [u.id, 0]));
+  }
+
+  const rangeStart = new Date(Date.UTC(exportY - 1, 0, 1));
+  const rangeEnd = new Date(Date.UTC(yEnd, mEnd, 0));
+
+  const rawRows = await prisma.$queryRaw<
+    { userId: string; date: Date; codeSuffix: string | null; label: string }[]
+  >`
+    SELECT e."userId", e.date, e."codeSuffix", o.label
+    FROM "AttendanceEntry" e
+    INNER JOIN "DropdownOption" o ON o.id = e."optionId"
+    WHERE e.date >= ${rangeStart}::date
+      AND e.date <= ${rangeEnd}::date
+    ORDER BY e."userId" ASC, e.date ASC, e."optionSlot" ASC, e.id ASC
+  `;
+
+  /** userId -> "y-m" -> day -> mã 1 dòng (optionSlot min). */
+  const byUserYmk = new Map<string, Map<string, Map<number, string>>>();
+  for (const e of rawRows) {
+    const d = e.date.getUTCDate();
+    const y = e.date.getUTCFullYear();
+    const mo = e.date.getUTCMonth() + 1;
+    const key = `${y}-${mo}`;
+    if (!byUserYmk.has(e.userId)) byUserYmk.set(e.userId, new Map());
+    const m1 = byUserYmk.get(e.userId)!;
+    if (!m1.has(key)) m1.set(key, new Map());
+    const dayMap = m1.get(key)!;
+    if (dayMap.has(d)) continue;
+    dayMap.set(d, e.label + (e.codeSuffix ?? ""));
+  }
+
+  const holiCache = new Map<string, Set<string>>();
+  for (const { y, m: mo } of months) {
+    const cacheKey = `${y}-${mo}`;
+    if (!holiCache.has(cacheKey)) {
+      holiCache.set(cacheKey, await getPublicHolidayYmdSetForMonth(y, mo));
+    }
+  }
+
+  const result = new Map<string, number>();
+  for (const u of users) {
+    let b = 0;
+    for (const { y, m: mo } of months) {
+      const dim = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+      const ymk = `${y}-${mo}`;
+      const dayM = byUserYmk.get(u.id)?.get(ymk);
+      const byDay: string[] = [];
+      for (let d = 1; d <= dim; d++) {
+        byDay.push(dayM?.get(d) ?? "");
+      }
+      const hset = holiCache.get(ymk)!;
+      const { tongBuuPhatSinh, buSuDung } = computeTheoDoiBuMetricsForByDay(
+        y,
+        mo,
+        byDay,
+        dim,
+        hset
+      );
+      b += tongBuuPhatSinh - buSuDung;
+    }
+    result.set(u.id, b);
+  }
+  return result;
 }
 
 /**

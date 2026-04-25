@@ -87,6 +87,32 @@ function row2DayLabel(
   return vnDowLabel(dt.getUTCDay());
 }
 
+/**
+ * Cùng quy tắc cột Tổng bù phát sinh + Bù sử dụng (sheet «Theo dõi bù») — dùng khi tính dư nợ tích lũy tháng trước.
+ */
+export function computeTheoDoiBuMetricsForByDay(
+  year: number,
+  month: number,
+  byDay: string[],
+  daysInMonth: number,
+  adminHolidayYmd: Set<string>
+): { tongBuuPhatSinh: number; buSuDung: number } {
+  let tongBuuPhatSinh = 0;
+  let buSuDung = 0;
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const labelDow = row2DayLabel(year, month, d, adminHolidayYmd);
+    const raw = String(byDay[d - 1] ?? "");
+    buSuDung += scoreBFromCellText(raw);
+    if (labelDow === "CN" || labelDow === "L") {
+      const x = scoreXFromCellText(raw);
+      if (x > 0) {
+        tongBuuPhatSinh += x;
+      }
+    }
+  }
+  return { tongBuuPhatSinh, buSuDung };
+}
+
 function dayColumnStyle(
   year: number,
   month: number,
@@ -595,7 +621,9 @@ export async function buildManagerMonthExcelBuffer(
   matrixRows: ManagerMonthMatrixRow[],
   daysInMonth: number,
   /** YYYY-MM-DD: ngày lễ do admin; gộp với lễ dương lịch mặc định trong mã. */
-  adminHolidayYmd: Set<string> = new Set()
+  adminHolidayYmd: Set<string> = new Set(),
+  /** Cột «Bù còn lại tháng trước» = dư «Bù còn lại» cuối tháng trước (cùng thứ tự dòng với matrixRows). */
+  buConLaiThangTruoc: number[] = []
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "ChamCong";
@@ -909,10 +937,11 @@ export async function buildManagerMonthExcelBuffer(
         }
       }
     }
+    const buDau = buConLaiThangTruoc[idx] ?? 0;
     const dataRow = wsBu.getRow(r);
     dataRow.getCell(1).value = idx + 1;
     dataRow.getCell(2).value = row.fullName;
-    dataRow.getCell(3).value = 0;
+    dataRow.getCell(3).value = buDau;
     dataRow.getCell(3).numFmt = NUM_1DP;
     dataRow.getCell(4).value = tongBuuPhatSinh;
     dataRow.getCell(4).numFmt = NUM_1DP;

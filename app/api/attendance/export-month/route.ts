@@ -3,7 +3,10 @@ import { prisma } from "@/lib/db";
 import { buildManagerMonthExcelBuffer } from "@/lib/manager-month-excel";
 import { getPublicHolidayYmdSetForMonth } from "@/lib/public-holiday";
 import { getUserIdFromCookie } from "@/lib/session";
-import { buildManagerMonthAttendanceMatrix } from "@/lib/user-attendance";
+import {
+  buildManagerMonthAttendanceMatrix,
+  computeBuConLaiKetThangTruocTheoNguoi,
+} from "@/lib/user-attendance";
 
 const noStore = {
   headers: {
@@ -41,14 +44,22 @@ export async function GET(request: Request) {
     );
   }
 
-  const { daysInMonth, rows } = await buildManagerMonthAttendanceMatrix(y, m);
-  const adminHolidayYmd = await getPublicHolidayYmdSetForMonth(y, m);
+  const [monthBlock, buMap, adminHolidayYmd] = await Promise.all([
+    buildManagerMonthAttendanceMatrix(y, m),
+    computeBuConLaiKetThangTruocTheoNguoi(y, m),
+    getPublicHolidayYmdSetForMonth(y, m),
+  ]);
+  const { daysInMonth, rows } = monthBlock;
+  const buConLaiThangTruoc = rows.map(
+    (r) => buMap.get(r.userId) ?? 0
+  );
   const buf = await buildManagerMonthExcelBuffer(
     y,
     m,
     rows,
     daysInMonth,
-    adminHolidayYmd
+    adminHolidayYmd,
+    buConLaiThangTruoc
   );
   const fileBytes = new Uint8Array(buf);
 

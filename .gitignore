@@ -29,3 +29,6 @@ npm-debug.log*
 # prisma
 *.db
 *.db-journal
+
+# snapshot migration (chứa passwordHash — không commit)
+data/migration-snapshots/*.json

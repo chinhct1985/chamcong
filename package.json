@@ -16,7 +16,9 @@
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:apply-loai-cc": "tsx scripts/apply-loai-cc.ts"
+    "db:apply-loai-cc": "tsx scripts/apply-loai-cc.ts",
+    "db:snapshot:export": "tsx scripts/migration-data-snapshot.ts export",
+    "db:snapshot:import": "tsx scripts/migration-data-snapshot.ts import"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
