@@ -15,6 +15,7 @@ export default async function AdminUsersPage() {
     phone: u.phone,
     isActive: u.isActive,
     isManager: u.isManager,
+    includeInManagerExcel: u.includeInManagerExcel,
     employeeTypeId: u.employeeTypeId,
     employeeTypeName: u.employeeType?.name ?? null,
     employeeTypeSortOrder: u.employeeType?.sortOrder ?? null,
@@ -38,8 +39,9 @@ export default async function AdminUsersPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">
           Thêm nhân viên mới; sửa họ tên, loại nhân viên, số điện thoại và cờ Quản
-          lý; khóa hoặc xóa tài khoản. Xóa user sẽ xóa luôn lịch sử chấm công liên
-          quan.
+          lý; khóa hoặc xóa tài khoản. Cột Excel (ô tích) quyết định dòng này có
+          xuất trong file chấm công quản lý hay không. Xóa user sẽ xóa luôn lịch sử
+          chấm công liên quan.
         </p>
       </header>
       <AdminUsersPanel

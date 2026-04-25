@@ -28,6 +28,8 @@ model User {
   passwordHash String
   isActive     Boolean            @default(true)
   isManager    Boolean            @default(false)
+  /// Gồm trong file Excel chấm công (quản lý); false = bỏ khỏi xuất.
+  includeInManagerExcel Boolean  @default(true)
   employeeTypeId String?
   employeeType   EmployeeType?    @relation(fields: [employeeTypeId], references: [id], onDelete: Restrict)
   createdAt    DateTime           @default(now())

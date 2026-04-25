@@ -132,7 +132,7 @@ export async function buildManagerMonthAttendanceMatrix(
   const daysInMonth = end.getUTCDate();
 
   const users = await prisma.user.findMany({
-    where: { isActive: true },
+    where: { isActive: true, includeInManagerExcel: true },
     select: {
       id: true,
       fullName: true,
@@ -206,7 +206,7 @@ export async function computeBuConLaiKetThangTruocTheoNguoi(
   const months = eachYmFromTo(exportY - 1, 1, yEnd, mEnd);
 
   const users = await prisma.user.findMany({
-    where: { isActive: true },
+    where: { isActive: true, includeInManagerExcel: true },
     select: { id: true, fullName: true, employeeType: { select: { sortOrder: true } } },
   });
   users.sort((a, b) => {

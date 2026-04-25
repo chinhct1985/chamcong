@@ -15,6 +15,7 @@ const patchUserSchema = z
     phone: z.string().optional(),
     isActive: z.boolean().optional(),
     isManager: z.boolean().optional(),
+    includeInManagerExcel: z.boolean().optional(),
     employeeTypeId: z.union([z.string().min(1), z.null()]).optional(),
     /** Admin đặt mật khẩu mới, không cần mật khẩu cũ. */
     newPassword: z
@@ -64,6 +65,7 @@ export const adminUserSelect = {
   phone: true,
   isActive: true,
   isManager: true,
+  includeInManagerExcel: true,
   employeeTypeId: true,
   employeeType: {
     select: { id: true, name: true, sortOrder: true },
@@ -116,6 +118,7 @@ export async function adminCreateUser(
         passwordHash,
         isManager: isManager ?? false,
         isActive: true,
+        includeInManagerExcel: true,
         employeeType: { connect: { id: employeeTypeId } },
       },
       select: adminUserSelect,
@@ -151,6 +154,9 @@ export async function adminPatchUser(
   if (d.fullName !== undefined) updateData.fullName = d.fullName;
   if (d.isActive !== undefined) updateData.isActive = d.isActive;
   if (d.isManager !== undefined) updateData.isManager = d.isManager;
+  if (d.includeInManagerExcel !== undefined) {
+    updateData.includeInManagerExcel = d.includeInManagerExcel;
+  }
   if (d.phone !== undefined) {
     updateData.phone = normalizePhoneInput(d.phone.trim());
   }

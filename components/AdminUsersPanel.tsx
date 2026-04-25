@@ -11,6 +11,8 @@ type UserRow = {
   phone: string;
   isActive: boolean;
   isManager: boolean;
+  /** Tích: có trong file Excel chấm công (quản lý). */
+  includeInManagerExcel: boolean;
   employeeTypeId: string | null;
   employeeTypeName: string | null;
   employeeTypeSortOrder: number | null;
@@ -105,6 +107,7 @@ export function AdminUsersPanel({
           phone: u.phone,
           isActive: u.isActive,
           isManager: u.isManager,
+          includeInManagerExcel: u.includeInManagerExcel ?? true,
           employeeTypeId: u.employeeTypeId ?? u.employeeType?.id ?? null,
           employeeTypeName: u.employeeType?.name ?? u.employeeTypeName ?? null,
           employeeTypeSortOrder:
@@ -223,6 +226,28 @@ export function AdminUsersPanel({
       return;
     }
     toast.success(!u.isActive ? "Đã mở khóa" : "Đã khóa tài khoản");
+    await reload();
+  }
+
+  async function toggleIncludeInManagerExcel(u: UserRow) {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        includeInManagerExcel: !u.includeInManagerExcel,
+      }),
+    });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      toast.error(data.error ?? "Lỗi cập nhật");
+      return;
+    }
+    toast.success(
+      u.includeInManagerExcel
+        ? "Đã bỏ nhân viên khỏi file Excel chấm công"
+        : "Đã thêm nhân viên vào file Excel chấm công"
+    );
     await reload();
   }
 
@@ -513,6 +538,16 @@ export function AdminUsersPanel({
                     </span>
                   )}
                 </div>
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={u.includeInManagerExcel}
+                    onChange={() => void toggleIncludeInManagerExcel(u)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    title="Có trong file Excel chấm công (quản lý)"
+                  />
+                  <span>File Excel chấm công</span>
+                </label>
                 <p className="mt-1.5 text-xs text-slate-500">
                   Tạo: {u.createdAtLabel ?? formatDateTimeHcm(u.createdAt)}
                 </p>
@@ -552,7 +587,7 @@ export function AdminUsersPanel({
         ))}
       </ul>
       <div className="hidden w-full min-w-0 max-w-full overflow-x-auto md:block">
-        <table className="w-full min-w-[60rem] text-left text-sm">
+        <table className="w-full min-w-[64rem] text-left text-sm">
         <thead className="table-head">
           <tr>
             <th className="whitespace-nowrap py-3 pl-2 pr-3 text-left font-semibold">
@@ -569,6 +604,12 @@ export function AdminUsersPanel({
             </th>
             <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
               Trạng thái
+            </th>
+            <th
+              className="whitespace-nowrap px-3 py-3 text-center font-semibold sm:px-4"
+              title="Có trong file Excel chấm công (quản lý)"
+            >
+              Excel
             </th>
             <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
               Tạo lúc
@@ -682,6 +723,16 @@ export function AdminUsersPanel({
                     Đã khóa
                   </span>
                 )}
+              </td>
+              <td className="table-cell text-center">
+                <input
+                  type="checkbox"
+                  checked={u.includeInManagerExcel}
+                  onChange={() => void toggleIncludeInManagerExcel(u)}
+                  className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  title="Có trong file Excel chấm công (quản lý)"
+                  aria-label={`Excel chấm công: ${u.fullName}`}
+                />
               </td>
               <td className="table-cell text-slate-600">
                 {u.createdAtLabel ?? formatDateTimeHcm(u.createdAt)}

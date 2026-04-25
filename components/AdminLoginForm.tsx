@@ -118,12 +118,6 @@ export function AdminLoginForm({
             {pending ? "Đang xử lý…" : "Đăng nhập"}
           </button>
         </form>
-
-        <p className="mt-6 rounded-lg bg-blue-50 px-3 py-2 text-center text-xs text-slate-600">
-          Tài khoản tích hợp sẵn:{" "}
-          <span className="font-mono font-medium text-blue-700">admin</span> /{" "}
-          <span className="font-mono font-medium text-blue-700">admin</span>
-        </p>
       </div>
     </div>
   );

@@ -56,6 +56,7 @@ export type MigrationSnapshot = {
     passwordHash: string;
     isActive: boolean;
     isManager: boolean;
+    includeInManagerExcel?: boolean;
     employeeTypeId: string | null;
     createdAt: JsonDate;
     updatedAt: JsonDate;
@@ -222,9 +223,10 @@ async function cmdImport(filePath: string, force: boolean) {
               phone: row.phone,
               passwordHash: row.passwordHash,
               isActive: row.isActive,
-              isManager: row.isManager,
-              employeeTypeId: row.employeeTypeId,
-              createdAt: new Date(row.createdAt),
+            isManager: row.isManager,
+            includeInManagerExcel: row.includeInManagerExcel ?? true,
+            employeeTypeId: row.employeeTypeId,
+            createdAt: new Date(row.createdAt),
               updatedAt: new Date(row.updatedAt),
             })),
           });

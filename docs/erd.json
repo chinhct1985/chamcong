@@ -23,6 +23,7 @@
         { "name": "passwordHash", "type": "string" },
         { "name": "isActive", "type": "boolean", "default": true },
         { "name": "isManager", "type": "boolean", "default": false, "description": "Quản lý" },
+        { "name": "includeInManagerExcel", "type": "boolean", "default": true, "description": "Gồm trong xuất Excel quản lý" },
         { "name": "employeeTypeId", "type": "string", "optional": true, "fk": "EmployeeType.id" },
         { "name": "createdAt", "type": "datetime" },
         { "name": "updatedAt", "type": "datetime" },
