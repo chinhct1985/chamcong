@@ -10,8 +10,11 @@ type EtOpt = { id: string; name: string; sortOrder: number };
 
 export function RegisterForm({
   initialEmployeeTypes = [],
+  schemaError = null,
 }: {
   initialEmployeeTypes?: EtOpt[];
+  /** Thiếu bảng / schema (ví dụ P2021) — tránh 500, hiển thị hướng dẫn cho admin */
+  schemaError?: string | null;
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -85,6 +88,8 @@ export function RegisterForm({
       ? [...initialEmployeeTypes].sort((a, b) => a.sortOrder - b.sortOrder)
       : [];
 
+  const formDisabled = Boolean(schemaError) || typeOptions.length === 0;
+
   return (
     <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-md flex-col justify-center px-4 py-12">
       <div className="card">
@@ -97,6 +102,16 @@ export function RegisterForm({
             Tạo tài khoản bằng họ tên, loại nhân viên, số điện thoại và mật khẩu
           </p>
         </div>
+
+        {schemaError ? (
+          <div
+            role="alert"
+            className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950"
+          >
+            <p className="font-semibold">Hệ thống chưa sẵn sàng</p>
+            <p className="mt-1 text-amber-900/90">{schemaError}</p>
+          </div>
+        ) : null}
 
         <form method="post" onSubmit={handleFormSubmit} className="flex flex-col gap-5">
           <div className="form-field">
@@ -117,6 +132,7 @@ export function RegisterForm({
               }}
               placeholder="Nguyễn Văn A"
               required
+              disabled={formDisabled}
             />
           </div>
           <div className="form-field">
@@ -130,12 +146,14 @@ export function RegisterForm({
               value={employeeTypeId}
               onChange={(e) => setEmployeeTypeId(e.target.value)}
               required
-              disabled={typeOptions.length === 0}
+              disabled={formDisabled}
             >
               <option value="">
-                {typeOptions.length === 0
-                  ? "— Chưa cấu hình loại NV (liên hệ admin) —"
-                  : "— Chọn —"}
+                {schemaError
+                  ? "— Lỗi cấu hình CSDL —"
+                  : typeOptions.length === 0
+                    ? "— Chưa cấu hình loại NV (liên hệ admin) —"
+                    : "— Chọn —"}
               </option>
               {typeOptions.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -158,6 +176,7 @@ export function RegisterForm({
               inputMode="numeric"
               placeholder="Dùng làm tên đăng nhập"
               required
+              disabled={formDisabled}
             />
           </div>
           <div className="form-field">
@@ -174,11 +193,12 @@ export function RegisterForm({
               minLength={6}
               placeholder="Tối thiểu 6 ký tự"
               required
+              disabled={formDisabled}
             />
           </div>
           <button
             type="submit"
-            disabled={pending || typeOptions.length === 0}
+            disabled={pending || formDisabled}
             className="btn-primary mt-1 w-full"
           >
             {pending ? "Đang xử lý…" : "Đăng ký"}

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/RegisterForm";
@@ -19,6 +20,22 @@ export default async function RegisterPage() {
       /* hiển thị form */
     }
   }
-  const employeeTypes = await listEmployeeTypesPublic();
-  return <RegisterForm initialEmployeeTypes={employeeTypes} />;
+  let employeeTypes: Awaited<ReturnType<typeof listEmployeeTypesPublic>> = [];
+  let schemaError: string | null = null;
+  try {
+    employeeTypes = await listEmployeeTypesPublic();
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2021") {
+      schemaError =
+        "Cơ sở dữ liệu trên môi trường này chưa chạy migration (thiếu bảng). Trên máy deploy, chạy: npx prisma migrate deploy (với biến DATABASE_URL đúng với production), rồi tải lại trang.";
+    } else {
+      throw e;
+    }
+  }
+  return (
+    <RegisterForm
+      initialEmployeeTypes={employeeTypes}
+      schemaError={schemaError}
+    />
+  );
 }
