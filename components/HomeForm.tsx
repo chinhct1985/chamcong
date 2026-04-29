@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { AttendanceHelpModal } from "@/components/AttendanceHelpModal";
 import { useRouter } from "next/navigation";
 import { formatVnDmyFromYmd } from "@/lib/attendance-submit-log";
 import { toast } from "sonner";
@@ -113,6 +114,7 @@ export function HomeForm({
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingLogs, setExportingLogs] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   /** Chỉ hiện UI chỉ-dành-cho-quản-lý sau khi client commit — SSR + lần hydrate đầu cùng không render (tránh lệch cây). */
   const [clientReady, setClientReady] = useState(false);
   const skipInitialMonthLoad = useRef(true);
@@ -368,13 +370,24 @@ export function HomeForm({
             )}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="btn-secondary shrink-0 self-start"
-        >
-          Đăng xuất
-        </button>
+        <div className="flex shrink-0 flex-col gap-2 self-start sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            className="btn-secondary w-full sm:w-auto"
+            aria-haspopup="dialog"
+            aria-expanded={helpOpen}
+          >
+            Hướng dẫn
+          </button>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="btn-secondary w-full sm:w-auto"
+          >
+            Đăng xuất
+          </button>
+        </div>
       </header>
 
       <div className="card">
@@ -666,6 +679,8 @@ export function HomeForm({
           </div>
         </div>
       </section>
+
+      <AttendanceHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
