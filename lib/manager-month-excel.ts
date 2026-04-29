@@ -376,39 +376,54 @@ function applyBuSheetFooter(
   line2.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
 }
 
+/** Sheet «Chấm công»: phần trên — merge cột cố định (trụ sở trái / quốc hiệu phải). */
+const SHEET1_HEADER_LEFT_COLS = 9;
+const SHEET1_HEADER_RIGHT_COLS = 9;
+
 function applyReportHeader(
   ws: ExcelJS.Worksheet,
   year: number,
   month: number,
   lastCol: number
 ): void {
-  const companyEndCol = 5;
-  const mottoStartCol = Math.max(companyEndCol + 1, lastCol - 5);
+  const leftEndCol = SHEET1_HEADER_LEFT_COLS;
+  const rightStartCol = Math.max(
+    leftEndCol + 1,
+    lastCol - SHEET1_HEADER_RIGHT_COLS + 1
+  );
 
-  ws.mergeCells(1, 1, 1, companyEndCol);
+  ws.mergeCells(1, 1, 1, leftEndCol);
   const cName = ws.getCell(1, 1);
   cName.value = "CÔNG TY CỔ PHẦN BỆNH VIỆN MỸ ĐỨC PHÚ NHUẬN";
   cName.font = { bold: true, size: 11 };
-  cName.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+  cName.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
 
-  ws.mergeCells(2, 1, 2, companyEndCol);
+  ws.mergeCells(2, 1, 3, leftEndCol);
   const cAddr = ws.getCell(2, 1);
   cAddr.value =
     "Địa chỉ: 43R/2 - 43R/4 Hồ Văn Huê, Phường 9, Quận Phú Nhuận, Thành phố Hồ Chí Minh";
   cAddr.font = { size: 11 };
-  cAddr.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+  cAddr.alignment = {
+    vertical: "middle",
+    horizontal: "left",
+    wrapText: true,
+  };
 
-  ws.mergeCells(1, mottoStartCol, 1, lastCol);
-  const m1 = ws.getCell(1, mottoStartCol);
-  m1.value = "CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM";
+  ws.mergeCells(1, rightStartCol, 1, lastCol);
+  const m1 = ws.getCell(1, rightStartCol);
+  m1.value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM";
   m1.font = { bold: true, size: 11 };
   m1.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
 
-  ws.mergeCells(2, mottoStartCol, 2, lastCol);
-  const m2 = ws.getCell(2, mottoStartCol);
+  ws.mergeCells(2, rightStartCol, 2, lastCol);
+  const m2 = ws.getCell(2, rightStartCol);
   m2.value = "Độc lập - Tự do - Hạnh phúc";
   m2.font = { bold: true, size: 11 };
   m2.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+
+  ws.getRow(1).height = 24;
+  ws.getRow(2).height = 26;
+  ws.getRow(3).height = 26;
 
   ws.mergeCells(4, 1, 4, lastCol);
   const t1 = ws.getCell(4, 1);
@@ -422,7 +437,7 @@ function applyReportHeader(
   t2.font = { bold: true, size: 11 };
   t2.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
 
-  ws.mergeCells(7, 1, 7, companyEndCol);
+  ws.mergeCells(7, 1, 7, leftEndCol);
   const dept = ws.getCell(7, 1);
   dept.value = "* NHS IVF";
   dept.font = { bold: true, italic: true, size: 11 };
