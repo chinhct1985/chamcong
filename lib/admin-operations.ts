@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/db";
+import { ADMIN_USERS_PAGE_SIZE_DEFAULT } from "@/lib/admin-users-paging";
 import { LOAI_CC_LABELS } from "@/lib/loai-cc-defaults";
 import { normalizePhoneInput, registerSchema } from "@/lib/validation";
 import { z } from "zod";
@@ -75,19 +76,30 @@ export const adminUserSelect = {
 
 export type AdminUserRow = Prisma.UserGetPayload<{ select: typeof adminUserSelect }>;
 
-export async function adminListUsers(): Promise<AdminUserRow[]> {
+export type AdminListUsersPaginatedResult = {
+  users: AdminUserRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export async function adminListUsersPaginated(
+  page: number,
+  pageSize: number = ADMIN_USERS_PAGE_SIZE_DEFAULT
+): Promise<AdminListUsersPaginatedResult> {
+  const safePage = Math.max(1, Math.floor(Number(page)) || 1);
+  const rawSize = Math.floor(Number(pageSize)) || ADMIN_USERS_PAGE_SIZE_DEFAULT;
+  const safeSize = Math.min(100, Math.max(1, rawSize));
+  const total = await prisma.user.count();
+  const maxPage = Math.max(1, Math.ceil(total / safeSize));
+  const pageClamped = Math.min(safePage, maxPage);
   const rows = await prisma.user.findMany({
     select: adminUserSelect,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: (pageClamped - 1) * safeSize,
+    take: safeSize,
   });
-  rows.sort((a, b) => {
-    const ao = a.employeeType?.sortOrder ?? 999_999;
-    const bo = b.employeeType?.sortOrder ?? 999_999;
-    if (ao !== bo) return ao - bo;
-    const c = a.fullName.localeCompare(b.fullName, "vi");
-    if (c !== 0) return c;
-    return a.id.localeCompare(b.id);
-  });
-  return rows;
+  return { users: rows, total, page: pageClamped, pageSize: safeSize };
 }
 
 export async function adminCreateUser(

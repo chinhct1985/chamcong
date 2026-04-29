@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ADMIN_USERS_PAGE_SIZE_DEFAULT } from "@/lib/admin-users-paging";
 import { formatDateTimeHcm } from "@/lib/format-datetime-vn";
 
 type UserRow = {
@@ -26,12 +28,20 @@ type EmpTypeOpt = { id: string; name: string; sortOrder: number };
 export function AdminUsersPanel({
   initialUsers,
   initialEmployeeTypes,
+  initialTotal,
+  initialPage,
+  pageSize = ADMIN_USERS_PAGE_SIZE_DEFAULT,
 }: {
   initialUsers: UserRow[];
   initialEmployeeTypes: EmpTypeOpt[];
+  initialTotal: number;
+  initialPage: number;
+  pageSize?: number;
 }) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
+  const [total, setTotal] = useState(initialTotal);
+  const [page, setPage] = useState(initialPage);
   const [employeeTypes] = useState<EmpTypeOpt[]>(() =>
     [...initialEmployeeTypes].sort((a, b) => a.sortOrder - b.sortOrder)
   );
@@ -79,11 +89,53 @@ export function AdminUsersPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [addModalOpen, closeAddModal]);
 
+  useEffect(() => {
+    setUsers(initialUsers);
+    setTotal(initialTotal);
+    setPage(initialPage);
+  }, [initialUsers, initialTotal, initialPage]);
+
+  const mapApiUsers = useCallback((list: unknown[]) => {
+    type ApiUser = UserRow & {
+      employeeType?: { id: string; name: string; sortOrder: number } | null;
+    };
+    return (list as ApiUser[]).map((u) => ({
+      id: u.id,
+      fullName: u.fullName,
+      phone: u.phone,
+      isActive: u.isActive,
+      isManager: u.isManager,
+      includeInManagerExcel: u.includeInManagerExcel ?? true,
+      employeeTypeId: u.employeeTypeId ?? u.employeeType?.id ?? null,
+      employeeTypeName: u.employeeType?.name ?? u.employeeTypeName ?? null,
+      employeeTypeSortOrder:
+        u.employeeType?.sortOrder ?? u.employeeTypeSortOrder ?? null,
+      createdAt:
+        typeof u.createdAt === "string"
+          ? u.createdAt
+          : new Date(u.createdAt as Date).toISOString(),
+      createdAtLabel: formatDateTimeHcm(
+        typeof u.createdAt === "string"
+          ? u.createdAt
+          : new Date(u.createdAt as Date)
+      ),
+    }));
+  }, []);
+
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/users", { credentials: "include" });
-      const data = (await res.json()) as { users?: UserRow[]; error?: string };
+      const res = await fetch(
+        `/api/admin/users?page=${page}&pageSize=${pageSize}`,
+        { credentials: "include" }
+      );
+      const data = (await res.json()) as {
+        users?: UserRow[];
+        total?: number;
+        page?: number;
+        pageSize?: number;
+        error?: string;
+      };
       if (!res.ok) {
         if (res.status === 401 || data.error === "Unauthorized") {
           toast.error("Phiên hết hạn — đăng nhập lại");
@@ -97,29 +149,13 @@ export function AdminUsersPanel({
         toast.error("Dữ liệu không hợp lệ");
         return;
       }
-      type ApiUser = UserRow & {
-        employeeType?: { id: string; name: string; sortOrder: number } | null;
-      };
-      setUsers(
-        (data.users as ApiUser[]).map((u) => ({
-          id: u.id,
-          fullName: u.fullName,
-          phone: u.phone,
-          isActive: u.isActive,
-          isManager: u.isManager,
-          includeInManagerExcel: u.includeInManagerExcel ?? true,
-          employeeTypeId: u.employeeTypeId ?? u.employeeType?.id ?? null,
-          employeeTypeName: u.employeeType?.name ?? u.employeeTypeName ?? null,
-          employeeTypeSortOrder:
-            u.employeeType?.sortOrder ?? u.employeeTypeSortOrder ?? null,
-          createdAt: u.createdAt,
-          createdAtLabel: formatDateTimeHcm(u.createdAt),
-        }))
-      );
+      if (typeof data.total === "number") setTotal(data.total);
+      if (typeof data.page === "number") setPage(data.page);
+      setUsers(mapApiUsers(data.users));
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, page, pageSize, mapApiUsers]);
 
   function startEdit(u: UserRow) {
     setPasswordFor(null);
@@ -284,7 +320,7 @@ export function AdminUsersPanel({
       }
       toast.success("Đã thêm nhân viên");
       closeAddModal();
-      await reload();
+      router.push("/admin/users?page=1");
     } catch {
       toast.error("Lỗi mạng — thử lại");
     } finally {
@@ -312,6 +348,11 @@ export function AdminUsersPanel({
     toast.success("Đã xóa");
     await reload();
   }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const displayFrom =
+    users.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const displayTo = (page - 1) * pageSize + users.length;
 
   if (loading && users.length === 0) {
     return (
@@ -411,7 +452,9 @@ export function AdminUsersPanel({
       ) : null}
       {users.length === 0 ? (
         <p className="border-slate-100 px-4 py-8 text-center text-slate-500 sm:border-t">
-          Chưa có nhân viên.
+          {total === 0
+            ? "Chưa có nhân viên."
+            : "Không có nhân viên trên trang này."}
         </p>
       ) : (
         <>
@@ -419,13 +462,16 @@ export function AdminUsersPanel({
         className="flex flex-col gap-3 p-2 md:hidden"
         aria-label="Danh sách nhân viên dạng thẻ"
       >
-        {users.map((u) => (
+        {users.map((u, idx) => (
           <li
             key={u.id}
-            className="rounded-lg border border-slate-200 bg-slate-50/40 p-3 shadow-sm"
+            className="rounded-lg border border-slate-200 p-3 shadow-sm odd:bg-white even:bg-slate-50/90"
           >
             {editId === u.id ? (
               <div className="flex flex-col gap-3">
+                <p className="text-xs font-medium tabular-nums text-slate-500">
+                  STT {(page - 1) * pageSize + idx + 1}
+                </p>
                 <div className="form-field min-w-0">
                   <label htmlFor={`edit-name-m-${u.id}`} className="form-label">
                     Họ tên
@@ -499,13 +545,14 @@ export function AdminUsersPanel({
               </div>
             ) : (
               <>
+                <p className="text-xs font-medium tabular-nums text-slate-500">
+                  STT {(page - 1) * pageSize + idx + 1}
+                </p>
                 <p
-                  className="min-w-0 text-base font-semibold text-slate-900 [overflow-wrap:normal]"
+                  className="mt-1 min-w-0 break-words text-base font-semibold text-slate-900"
                   title={u.fullName}
                 >
-                  <span className="block w-full max-w-full overflow-x-auto whitespace-nowrap [scrollbar-width:thin]">
-                    {u.fullName}
-                  </span>
+                  {u.fullName}
                 </p>
                 <p className="mt-1 font-mono text-sm text-slate-700">{u.phone}</p>
                 {u.employeeTypeName ? (
@@ -551,31 +598,33 @@ export function AdminUsersPanel({
                 <p className="mt-1.5 text-xs text-slate-500">
                   Tạo: {u.createdAtLabel ?? formatDateTimeHcm(u.createdAt)}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
+                <div className="mt-3 flex flex-nowrap gap-1">
                   <button
                     type="button"
-                    className="btn-ghost px-2 py-1.5 text-xs"
+                    className="btn-ghost shrink-0 whitespace-nowrap px-1.5 py-1 text-[11px] leading-tight sm:px-2 sm:text-xs"
+                    title="Sửa thông tin"
                     onClick={() => startEdit(u)}
                   >
                     Sửa
                   </button>
                   <button
                     type="button"
-                    className="btn-ghost px-2 py-1.5 text-xs"
+                    className="btn-ghost shrink-0 whitespace-nowrap px-1.5 py-1 text-[11px] leading-tight sm:px-2 sm:text-xs"
+                    title="Đặt mật khẩu mới"
                     onClick={() => startSetPassword(u)}
                   >
-                    Đổi mật khẩu
+                    Mật khẩu
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                    className="shrink-0 whitespace-nowrap rounded-lg px-1.5 py-1 text-[11px] font-medium leading-tight text-amber-700 hover:bg-amber-50 sm:px-2 sm:text-xs"
                     onClick={() => void toggleActive(u)}
                   >
                     {u.isActive ? "Khóa" : "Mở"}
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                    className="shrink-0 whitespace-nowrap rounded-lg px-1.5 py-1 text-[11px] font-medium leading-tight text-red-600 hover:bg-red-50 sm:px-2 sm:text-xs"
                     onClick={() => void remove(u)}
                   >
                     Xóa
@@ -586,76 +635,103 @@ export function AdminUsersPanel({
           </li>
         ))}
       </ul>
-      <div className="hidden w-full min-w-0 max-w-full overflow-x-auto md:block">
-        <table className="w-full min-w-[64rem] text-left text-sm">
+      <div className="hidden min-w-0 overflow-x-auto md:block">
+        <table className="w-full table-fixed text-left text-sm">
+        <colgroup>
+          <col className="w-[5%]" />
+          <col className="w-[21%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[7%]" />
+          <col className="w-[9%]" />
+          <col className="w-[6%]" />
+          <col className="w-[12%]" />
+          <col className="min-w-[10.5rem] w-[20%]" />
+        </colgroup>
         <thead className="table-head">
           <tr>
-            <th className="whitespace-nowrap py-3 pl-2 pr-3 text-left font-semibold">
+            <th
+              scope="col"
+              className="py-3 pl-2 pr-0 text-center text-xs font-semibold leading-tight sm:text-sm"
+            >
+              STT
+            </th>
+            <th className="py-3 pl-1 pr-1 text-left text-xs font-semibold leading-tight sm:text-sm">
               Họ tên
             </th>
-            <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
+            <th className="px-1 py-3 text-left text-xs font-semibold leading-tight sm:px-2 sm:text-sm">
               Loại NV
             </th>
-            <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
-              Số điện thoại
+            <th className="px-1 py-3 text-left text-xs font-semibold leading-tight sm:px-2 sm:text-sm">
+              SĐT
             </th>
-            <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
-              Quản lý
+            <th className="px-1 py-3 text-left text-xs font-semibold leading-tight sm:px-2 sm:text-sm">
+              QL
             </th>
-            <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
-              Trạng thái
+            <th className="px-1 py-3 text-left text-xs font-semibold leading-tight sm:px-2 sm:text-sm">
+              <span title="Trạng thái tài khoản">Tr.thái</span>
             </th>
             <th
-              className="whitespace-nowrap px-3 py-3 text-center font-semibold sm:px-4"
+              className="px-0.5 py-3 text-center text-xs font-semibold leading-tight sm:text-sm"
               title="Có trong file Excel chấm công (quản lý)"
             >
-              Excel
+              <span aria-hidden>XL</span>
+              <span className="sr-only">Excel</span>
             </th>
-            <th className="whitespace-nowrap px-3 py-3 font-semibold sm:px-4">
+            <th className="px-1 py-3 text-left text-xs font-semibold leading-tight sm:px-2 sm:text-sm">
               Tạo lúc
             </th>
-            <th className="whitespace-nowrap px-3 py-3 text-right font-semibold sm:px-4">
+            <th className="whitespace-nowrap py-3 pl-1 pr-2 text-right text-xs font-semibold leading-tight sm:text-sm">
               Thao tác
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white">
-          {users.map((u) => (
-            <tr key={u.id} className="hover:bg-blue-50/30">
-              <td className="table-cell !px-2 text-left !pl-2 text-slate-900">
+        <tbody>
+          {users.map((u, idx) => (
+            <tr
+              key={u.id}
+              className="odd:bg-white even:bg-slate-50/85 hover:bg-blue-50/50"
+            >
+              <th
+                scope="row"
+                className="table-cell !px-1 py-3 text-center align-top text-xs font-normal tabular-nums text-slate-600 sm:text-sm"
+              >
+                {(page - 1) * pageSize + idx + 1}
+              </th>
+              <td className="table-cell max-w-0 overflow-hidden !px-2 !pl-1 text-left align-top text-slate-900">
                 {editId === u.id ? (
-                  <div className="flex min-w-0 max-w-xs flex-col gap-2 sm:max-w-md">
+                  <div className="flex min-w-0 flex-col gap-2 pr-1">
                     <label htmlFor={`edit-name-${u.id}`} className="form-label">
                       Họ tên
                     </label>
                     <input
                       id={`edit-name-${u.id}`}
-                      className="form-control w-full"
+                      className="form-control w-full min-w-0"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                     />
                   </div>
                 ) : (
                   <span
-                    className="inline-block whitespace-nowrap align-middle text-slate-900"
+                    className="block truncate align-middle text-slate-900"
                     title={u.fullName}
                   >
                     {u.fullName}
                   </span>
                 )}
               </td>
-              <td className="table-cell max-w-[12rem]">
+              <td className="table-cell max-w-0 overflow-hidden align-top">
                 {editId === u.id ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex min-w-0 flex-col gap-2 pr-1">
                     <label
                       htmlFor={`edit-emp-type-${u.id}`}
-                      className="form-label"
+                      className="form-label text-xs sm:text-sm"
                     >
-                      Loại nhân viên
+                      Loại NV
                     </label>
                     <select
                       id={`edit-emp-type-${u.id}`}
-                      className="form-control max-w-[14rem] py-1 text-sm"
+                      className="form-control w-full min-w-0 py-1 text-xs sm:text-sm"
                       value={editEmployeeTypeId}
                       onChange={(e) => setEditEmployeeTypeId(e.target.value)}
                     >
@@ -668,20 +744,22 @@ export function AdminUsersPanel({
                     </select>
                   </div>
                 ) : u.employeeTypeName ? (
-                  <span className="text-slate-800">{u.employeeTypeName}</span>
+                  <span className="block truncate text-slate-800" title={u.employeeTypeName}>
+                    {u.employeeTypeName}
+                  </span>
                 ) : (
                   <span className="text-amber-700">—</span>
                 )}
               </td>
-              <td className="table-cell">
+              <td className="table-cell max-w-0 overflow-hidden align-top">
                 {editId === u.id ? (
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor={`edit-phone-${u.id}`} className="form-label">
-                      Số điện thoại
+                  <div className="flex min-w-0 flex-col gap-2 pr-1">
+                    <label htmlFor={`edit-phone-${u.id}`} className="form-label text-xs sm:text-sm">
+                      SĐT
                     </label>
                     <input
                       id={`edit-phone-${u.id}`}
-                      className="form-control max-w-[12rem] font-mono"
+                      className="form-control w-full min-w-0 font-mono text-xs sm:text-sm"
                       value={editPhone}
                       onChange={(e) => setEditPhone(e.target.value)}
                       autoComplete="tel"
@@ -689,42 +767,44 @@ export function AdminUsersPanel({
                     />
                   </div>
                 ) : (
-                  <span className="font-mono text-slate-700">{u.phone}</span>
+                  <span className="block truncate font-mono text-slate-700">{u.phone}</span>
                 )}
               </td>
-              <td className="table-cell">
+              <td className="table-cell align-top">
                 {editId === u.id ? (
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                  <label className="flex cursor-pointer items-center gap-1 text-xs text-slate-700 sm:gap-2 sm:text-sm">
                     <input
                       type="checkbox"
                       checked={editManager}
                       onChange={(e) => setEditManager(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span>Quản lý</span>
+                    <span className="min-w-0 break-words leading-tight sm:whitespace-nowrap">
+                      Quản lý
+                    </span>
                   </label>
                 ) : u.isManager ? (
-                  <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                  <span className="inline-flex rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 sm:px-2 sm:text-xs">
                     Có
                   </span>
                 ) : (
-                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                  <span className="inline-flex rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 sm:px-2 sm:text-xs">
                     Không
                   </span>
                 )}
               </td>
-              <td className="table-cell">
+              <td className="table-cell align-top">
                 {u.isActive ? (
-                  <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  <span className="inline-flex max-w-full whitespace-normal break-words rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-blue-700 sm:px-2 sm:text-xs">
                     Hoạt động
                   </span>
                 ) : (
-                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                  <span className="inline-flex max-w-full whitespace-normal break-words rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-slate-600 sm:px-2 sm:text-xs">
                     Đã khóa
                   </span>
                 )}
               </td>
-              <td className="table-cell text-center">
+              <td className="table-cell align-top text-center">
                 <input
                   type="checkbox"
                   checked={u.includeInManagerExcel}
@@ -734,53 +814,57 @@ export function AdminUsersPanel({
                   aria-label={`Excel chấm công: ${u.fullName}`}
                 />
               </td>
-              <td className="table-cell text-slate-600">
-                {u.createdAtLabel ?? formatDateTimeHcm(u.createdAt)}
+              <td className="table-cell max-w-0 overflow-hidden align-top text-xs text-slate-600 sm:text-sm">
+                <span className="block min-w-0 truncate" title={u.createdAtLabel ?? formatDateTimeHcm(u.createdAt)}>
+                  {u.createdAtLabel ?? formatDateTimeHcm(u.createdAt)}
+                </span>
               </td>
-              <td className="table-cell text-right">
+              <td className="table-cell min-w-0 overflow-hidden align-top text-right">
                 {editId === u.id ? (
-                  <div className="flex flex-wrap justify-end gap-2">
+                  <div className="flex min-w-0 flex-wrap justify-end gap-1">
                     <button
                       type="button"
-                      className="btn-primary px-3 py-1.5 text-xs"
+                      className="btn-primary shrink-0 whitespace-nowrap px-2 py-1 text-[11px] sm:text-xs"
                       onClick={() => void saveUser(u.id)}
                     >
                       Lưu
                     </button>
                     <button
                       type="button"
-                      className="btn-secondary px-3 py-1.5 text-xs"
+                      className="btn-secondary shrink-0 whitespace-nowrap px-2 py-1 text-[11px] sm:text-xs"
                       onClick={cancelEdit}
                     >
                       Hủy
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap justify-end gap-2">
+                  <div className="flex min-w-0 flex-wrap justify-end gap-x-1 gap-y-1">
                     <button
                       type="button"
-                      className="btn-ghost text-xs"
+                      className="btn-ghost shrink-0 whitespace-nowrap px-1 py-1 text-[11px] leading-tight sm:px-1.5 sm:text-xs"
+                      title="Sửa thông tin"
                       onClick={() => startEdit(u)}
                     >
                       Sửa
                     </button>
                     <button
                       type="button"
-                      className="btn-ghost text-xs"
+                      className="btn-ghost shrink-0 whitespace-nowrap px-1 py-1 text-[11px] leading-tight sm:px-1.5 sm:text-xs"
+                      title="Đặt mật khẩu mới"
                       onClick={() => startSetPassword(u)}
                     >
-                      Đổi mật khẩu
+                      MK
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                      className="shrink-0 whitespace-nowrap rounded-lg px-1 py-1 text-[11px] font-medium leading-tight text-amber-700 hover:bg-amber-50 sm:px-1.5 sm:text-xs"
                       onClick={() => void toggleActive(u)}
                     >
                       {u.isActive ? "Khóa" : "Mở"}
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                      className="shrink-0 whitespace-nowrap rounded-lg px-1 py-1 text-[11px] font-medium leading-tight text-red-600 hover:bg-red-50 sm:px-1.5 sm:text-xs"
                       onClick={() => void remove(u)}
                     >
                       Xóa
@@ -795,6 +879,45 @@ export function AdminUsersPanel({
       </div>
         </>
       )}
+      {total > 0 ? (
+        <nav
+          className="flex flex-col gap-2 border-t border-slate-100 px-3 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
+          aria-label="Phân trang danh sách nhân viên"
+        >
+          <p className="tabular-nums">
+            {displayFrom}–{displayTo} / {total} nhân viên
+          </p>
+          <div className="flex flex-nowrap items-center gap-2">
+            {page > 1 ? (
+              <Link
+                href={`/admin/users?page=${page - 1}`}
+                className="btn-secondary shrink-0 whitespace-nowrap px-3 py-1.5 text-xs"
+              >
+                ← Trước
+              </Link>
+            ) : (
+              <span className="shrink-0 whitespace-nowrap rounded-lg border border-transparent px-3 py-1.5 text-xs text-slate-400">
+                ← Trước
+              </span>
+            )}
+            <span className="whitespace-nowrap tabular-nums text-slate-700">
+              Trang {page}/{totalPages}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={`/admin/users?page=${page + 1}`}
+                className="btn-secondary shrink-0 whitespace-nowrap px-3 py-1.5 text-xs"
+              >
+                Sau →
+              </Link>
+            ) : (
+              <span className="shrink-0 whitespace-nowrap rounded-lg border border-transparent px-3 py-1.5 text-xs text-slate-400">
+                Sau →
+              </span>
+            )}
+          </div>
+        </nav>
+      ) : null}
       </div>
 
       {addModalOpen ? (

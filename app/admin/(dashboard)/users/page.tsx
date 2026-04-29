@@ -1,14 +1,23 @@
 import { AdminUsersPanel } from "@/components/AdminUsersPanel";
-import { adminListUsers, listEmployeeTypesPublic } from "@/lib/admin-operations";
+import { adminListUsersPaginated, listEmployeeTypesPublic } from "@/lib/admin-operations";
+import { ADMIN_USERS_PAGE_SIZE_DEFAULT } from "@/lib/admin-users-paging";
 import { formatDateTimeHcm } from "@/lib/format-datetime-vn";
 
 export const metadata = { title: "Admin — Nhân viên" };
 
-export default async function AdminUsersPage() {
-  const [rows, employeeTypes] = await Promise.all([
-    adminListUsers(),
-    listEmployeeTypesPublic(),
-  ]);
+type PageProps = {
+  searchParams: Promise<{ page?: string }>;
+};
+
+export default async function AdminUsersPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp?.page ?? "1", 10) || 1);
+
+  const [{ users: rows, total, page: currentPage, pageSize }, employeeTypes] =
+    await Promise.all([
+      adminListUsersPaginated(page, ADMIN_USERS_PAGE_SIZE_DEFAULT),
+      listEmployeeTypesPublic(),
+    ]);
   const initialUsers = rows.map((u) => ({
     id: u.id,
     fullName: u.fullName,
@@ -47,6 +56,9 @@ export default async function AdminUsersPage() {
       <AdminUsersPanel
         initialUsers={initialUsers}
         initialEmployeeTypes={initialEmployeeTypes}
+        initialTotal={total}
+        initialPage={currentPage}
+        pageSize={pageSize}
       />
     </div>
   );
