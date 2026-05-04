@@ -44,7 +44,8 @@ function createPrismaClient() {
               e instanceof Prisma.PrismaClientKnownRequestError &&
               CONNECTION_RETRY_CODES.has(e.code)
             ) {
-              await base.$disconnect().catch(() => {});
+              // Không gọi $disconnect(): sẽ đóng mọi kết nối và làm interactive
+              // transaction (prisma.$transaction callback) báo P2028.
               await base.$connect();
               return query(args);
             }

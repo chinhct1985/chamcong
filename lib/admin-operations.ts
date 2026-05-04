@@ -243,21 +243,24 @@ export async function adminReplaceLoaiCcToDefaults(): Promise<
   { ok: true; count: number } | { ok: false; error: string; status: number }
 > {
   try {
-    const count = await (prisma as PrismaClient).$transaction(async (tx) => {
-      await tx.attendanceEntry.deleteMany();
-      await tx.dropdownOption.deleteMany();
-      if (LOAI_CC_LABELS.length > 0) {
-        await tx.dropdownOption.createMany({
-          data: LOAI_CC_LABELS.map((label, i) => ({
-            label,
-            name: label,
-            sortOrder: i,
-            isActive: true,
-          })),
-        });
-      }
-      return LOAI_CC_LABELS.length;
-    });
+    const count = await (prisma as PrismaClient).$transaction(
+      async (tx) => {
+        await tx.attendanceEntry.deleteMany();
+        await tx.dropdownOption.deleteMany();
+        if (LOAI_CC_LABELS.length > 0) {
+          await tx.dropdownOption.createMany({
+            data: LOAI_CC_LABELS.map((label, i) => ({
+              label,
+              name: label,
+              sortOrder: i,
+              isActive: true,
+            })),
+          });
+        }
+        return LOAI_CC_LABELS.length;
+      },
+      { maxWait: 10_000, timeout: 60_000 }
+    );
     return { ok: true, count };
   } catch (e) {
     console.error(e);

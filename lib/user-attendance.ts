@@ -14,6 +14,12 @@ function prismaErrorToMessage(e: unknown): string {
     if (e.code === "P2003") {
       return "Tham chiếu Loại CC không hợp lệ";
     }
+    if (e.code === "P2028") {
+      return (
+        "Giao dịch CSDL không còn hợp lệ hoặc đã quá lâu. Thử lại; " +
+        "nếu vẫn lỗi, giảm số ngày chọn một lần hoặc kiểm tra kết nối Postgres."
+      );
+    }
     const meta = e.meta ? JSON.stringify(e.meta) : "";
     return `Lỗi CSDL (${e.code})${meta ? `: ${meta}` : ""}`;
   }
@@ -321,7 +327,8 @@ export async function replaceAttendanceForUserBulk(
   }
 
   try {
-    const count = await (prisma as PrismaClient).$transaction(async (tx) => {
+    const count = await (prisma as PrismaClient).$transaction(
+      async (tx) => {
       for (const { dt } of dateValues) {
         await tx.attendanceEntry.deleteMany({
           where: { userId, date: dt },
@@ -382,7 +389,9 @@ export async function replaceAttendanceForUserBulk(
         await tx.attendanceSubmitLog.createMany({ data: logData });
       }
       return inserted;
-    });
+    },
+      { maxWait: 10_000, timeout: 120_000 }
+    );
     return { ok: true, count };
   } catch (e) {
     console.error("replaceAttendanceForUserBulk", e);
