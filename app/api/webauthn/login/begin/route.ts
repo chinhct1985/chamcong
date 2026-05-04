@@ -7,6 +7,7 @@ import {
   webauthnChallengeExpiresAt,
 } from "@/lib/webauthn-challenge";
 import { webauthnOrigin, webauthnRpId } from "@/lib/webauthn-config";
+import { webauthnRouteErrorResponse } from "@/lib/webauthn-route-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,41 +17,45 @@ export const dynamic = "force-dynamic";
  * Chỉ nên gọi từ client iOS đã đăng ký passkey trước đó.
  */
 export async function POST(request: NextRequest) {
-  const hasAnyPasskey = await prisma.userWebAuthnCredential.findFirst({
-    select: { id: true },
-  });
-  if (!hasAnyPasskey) {
-    return NextResponse.json(
-      {
-        error:
-          "Chưa có tài khoản nào đăng ký Face ID. Đăng nhập bằng mật khẩu và bật Face ID trong trang chấm công.",
+  try {
+    const hasAnyPasskey = await prisma.userWebAuthnCredential.findFirst({
+      select: { id: true },
+    });
+    if (!hasAnyPasskey) {
+      return NextResponse.json(
+        {
+          error:
+            "Chưa có tài khoản nào đăng ký Face ID. Đăng nhập bằng mật khẩu và bật Face ID trong trang chấm công.",
+        },
+        { status: 400 }
+      );
+    }
+
+    await purgeExpiredWebAuthnChallenges();
+
+    const rpID = webauthnRpId(request);
+    const origin = webauthnOrigin(request);
+
+    const options = await generateAuthenticationOptions({
+      rpID,
+      userVerification: "required",
+    });
+
+    const row = await prisma.webAuthnChallenge.create({
+      data: {
+        challenge: options.challenge,
+        kind: WEBAUTHN_CHALLENGE_AUTHENTICATION,
+        userId: null,
+        expiresAt: webauthnChallengeExpiresAt(),
       },
-      { status: 400 }
-    );
+    });
+
+    return NextResponse.json({
+      challengeId: row.id,
+      options,
+      expectedOrigin: origin,
+    });
+  } catch (e) {
+    return webauthnRouteErrorResponse(e);
   }
-
-  await purgeExpiredWebAuthnChallenges();
-
-  const rpID = webauthnRpId(request);
-  const origin = webauthnOrigin(request);
-
-  const options = await generateAuthenticationOptions({
-    rpID,
-    userVerification: "required",
-  });
-
-  const row = await prisma.webAuthnChallenge.create({
-    data: {
-      challenge: options.challenge,
-      kind: WEBAUTHN_CHALLENGE_AUTHENTICATION,
-      userId: null,
-      expiresAt: webauthnChallengeExpiresAt(),
-    },
-  });
-
-  return NextResponse.json({
-    challengeId: row.id,
-    options,
-    expectedOrigin: origin,
-  });
 }

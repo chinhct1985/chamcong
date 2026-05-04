@@ -7,6 +7,7 @@ import { userSessionCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/db";
 import { WEBAUTHN_CHALLENGE_AUTHENTICATION } from "@/lib/webauthn-challenge";
 import { webauthnOrigin, webauthnRpId } from "@/lib/webauthn-config";
+import { webauthnRouteErrorResponse } from "@/lib/webauthn-route-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
   }
 
+  try {
   const challengeRow = await prisma.webAuthnChallenge.findUnique({
     where: { id: parsed.challengeId },
   });
@@ -107,4 +109,7 @@ export async function POST(request: NextRequest) {
   const res = NextResponse.json({ ok: true });
   res.cookies.set(AUTH_COOKIE_NAME, token, userSessionCookieOptions(request));
   return res;
+  } catch (e) {
+    return webauthnRouteErrorResponse(e);
+  }
 }

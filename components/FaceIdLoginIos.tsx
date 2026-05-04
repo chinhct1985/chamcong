@@ -7,6 +7,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { browserSupportsWebAuthn, isIOSBrowser } from "@/lib/client-ios";
+import { readApiJson } from "@/lib/read-api-json";
 
 export function FaceIdLoginIos() {
   const [show, setShow] = useState(false);
@@ -25,17 +26,16 @@ export function FaceIdLoginIos() {
         method: "POST",
         credentials: "include",
       });
-      let beginJson: {
+      const beginParsed = await readApiJson<{
         challengeId?: string;
         options?: unknown;
         error?: string;
-      };
-      try {
-        beginJson = (await begin.json()) as typeof beginJson;
-      } catch {
-        toast.error("Phản hồi máy chủ không hợp lệ");
+      }>(begin);
+      if (!beginParsed.ok) {
+        toast.error(beginParsed.error);
         return;
       }
+      const beginJson = beginParsed.data;
       if (!begin.ok) {
         toast.error(beginJson.error ?? "Không bắt đầu được đăng nhập Face ID");
         return;
@@ -62,13 +62,14 @@ export function FaceIdLoginIos() {
           credential,
         }),
       });
-      let finishJson: { ok?: boolean; error?: string };
-      try {
-        finishJson = (await finish.json()) as typeof finishJson;
-      } catch {
-        toast.error("Phản hồi máy chủ không hợp lệ");
+      const finishParsed = await readApiJson<{ ok?: boolean; error?: string }>(
+        finish
+      );
+      if (!finishParsed.ok) {
+        toast.error(finishParsed.error);
         return;
       }
+      const finishJson = finishParsed.data;
       if (!finish.ok) {
         toast.error(finishJson.error ?? "Đăng nhập Face ID thất bại");
         return;

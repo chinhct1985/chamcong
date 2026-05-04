@@ -1,10 +1,12 @@
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
+import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getUserIdFromCookie } from "@/lib/session";
 import { WEBAUTHN_CHALLENGE_REGISTRATION } from "@/lib/webauthn-challenge";
 import { webauthnOrigin, webauthnRpId } from "@/lib/webauthn-config";
+import { webauthnRouteErrorResponse } from "@/lib/webauthn-route-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +30,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
   }
 
+  try {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { isActive: true },
@@ -98,14 +101,20 @@ export async function POST(request: NextRequest) {
     ]);
   } catch (e) {
     console.error(e);
-    return NextResponse.json(
-      {
-        error:
-          "Không lưu được passkey (có thể thiết bị đã đăng ký trước đó)",
-      },
-      { status: 409 }
-    );
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json(
+        {
+          error:
+            "Không lưu được passkey (có thể thiết bị đã đăng ký trước đó)",
+        },
+        { status: 409 }
+      );
+    }
+    throw e;
   }
 
   return NextResponse.json({ ok: true });
+  } catch (e) {
+    return webauthnRouteErrorResponse(e);
+  }
 }
