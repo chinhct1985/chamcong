@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveAttendanceTargetUserId } from "@/lib/attendance-target-user";
 import { prisma } from "@/lib/db";
 import { getUserIdFromCookie } from "@/lib/session";
 import { listAttendanceEntriesForMonth } from "@/lib/user-attendance";
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
 
   const u = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isActive: true },
+    select: { isActive: true, isManager: true },
   });
   if (!u?.isActive) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, ...noStoreJson });
@@ -37,6 +38,23 @@ export async function GET(request: Request) {
     );
   }
 
-  const entries = await listAttendanceEntriesForMonth(userId, y, m);
+  const forUserIdRaw = searchParams.get("forUserId");
+  const resolved = await resolveAttendanceTargetUserId({
+    actorUserId: userId,
+    actorIsManager: Boolean(u.isManager),
+    forUserIdRaw: forUserIdRaw ?? undefined,
+  });
+  if (!resolved.ok) {
+    return NextResponse.json(
+      { error: resolved.error },
+      { status: resolved.status, ...noStoreJson }
+    );
+  }
+
+  const entries = await listAttendanceEntriesForMonth(
+    resolved.targetUserId,
+    y,
+    m
+  );
   return NextResponse.json({ entries }, noStoreJson);
 }

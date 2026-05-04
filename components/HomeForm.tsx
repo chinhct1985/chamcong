@@ -4,17 +4,26 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import Link from "next/link";
 import { AttendanceHelpModal } from "@/components/AttendanceHelpModal";
+import { IosPasskeyRegisterSection } from "@/components/IosPasskeyRegisterSection";
 import { useRouter } from "next/navigation";
 import { formatVnDmyFromYmd } from "@/lib/attendance-submit-log";
 import { toast } from "sonner";
 
 type Opt = { id: string; label: string; name: string };
 type Entry = { id: string; date: string; optionCode: string; optionName: string };
+
+type ManagerStaffRow = {
+  id: string;
+  fullName: string;
+  phone: string;
+  employeeTypeName: string | null;
+};
 
 type MonthFetchResult =
   | { ok: true; entries: Entry[] }
@@ -48,12 +57,17 @@ function mondayIndexOfFirstDay(y: number, m: number) {
 
 async function fetchMonthEntriesApi(
   year: number,
-  month: number
+  month: number,
+  forUserId?: string
 ): Promise<MonthFetchResult> {
-  const res = await fetch(
-    `/api/attendance/month?year=${encodeURIComponent(String(year))}&month=${encodeURIComponent(String(month))}`,
-    { credentials: "include" }
-  );
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  if (forUserId) q.set("forUserId", forUserId);
+  const res = await fetch(`/api/attendance/month?${q}`, {
+    credentials: "include",
+  });
   let data: unknown;
   try {
     data = await res.json();
@@ -72,21 +86,27 @@ async function fetchMonthEntriesApi(
 }
 
 export function HomeForm({
+  initialCurrentUserId,
   initialFullName,
   initialEmployeeTypeName,
   initialPhone,
   initialIsManager,
+  initialStaffForManagerPicker,
   initialDateYmd,
   initialOptions,
   initialEntries,
   initialListYear,
   initialListMonth,
 }: {
+  /** User đang đăng nhập — mặc định chấm cho chính mình. */
+  initialCurrentUserId: string;
   initialFullName: string;
   /** Tên loại nhân viên — hiển thị sau họ tên, ví dụ: Nguyễn Văn A (NHS). */
   initialEmployeeTypeName: string | null;
   initialPhone: string;
   initialIsManager: boolean;
+  /** Nhân viên (không phải quản lý) để quản lý chọn khi chấm hộ. */
+  initialStaffForManagerPicker: ManagerStaffRow[];
   /** Ngày mặc định form (YYYY-MM-DD) khớp server — không dùng `new Date()` trong useState. */
   initialDateYmd: string;
   initialOptions: Opt[];
@@ -96,6 +116,9 @@ export function HomeForm({
 }) {
   const router = useRouter();
   const [isManager] = useState(initialIsManager === true);
+  const [attendanceForUserId, setAttendanceForUserId] = useState(
+    () => initialCurrentUserId
+  );
   const [selectedDates, setSelectedDates] = useState<string[]>(() =>
     initialDateYmd ? [initialDateYmd] : []
   );
@@ -119,15 +142,38 @@ export function HomeForm({
   const [clientReady, setClientReady] = useState(false);
   const skipInitialMonthLoad = useRef(true);
 
+  const attendanceTargetShortLabel = useMemo(() => {
+    if (!isManager) return initialFullName;
+    if (attendanceForUserId === initialCurrentUserId) return initialFullName;
+    const s = initialStaffForManagerPicker.find(
+      (row) => row.id === attendanceForUserId
+    );
+    return s?.fullName ?? "nhân viên";
+  }, [
+    attendanceForUserId,
+    initialCurrentUserId,
+    initialFullName,
+    initialStaffForManagerPicker,
+    isManager,
+  ]);
+
   const loadMonth = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetchMonthEntriesApi(year, month);
+      const r = await fetchMonthEntriesApi(
+        year,
+        month,
+        isManager ? attendanceForUserId : undefined
+      );
       if (!r.ok) {
         setEntries([]);
         if (r.error === "Unauthorized") {
           toast.error("Phiên hết hạn — vui lòng đăng nhập lại");
           router.push("/login");
+          return;
+        }
+        if (r.error === "Forbidden") {
+          toast.error("Không có quyền xem dữ liệu nhân viên này");
           return;
         }
         toast.error(r.error);
@@ -137,7 +183,7 @@ export function HomeForm({
     } finally {
       setLoading(false);
     }
-  }, [year, month, router]);
+  }, [year, month, router, isManager, attendanceForUserId]);
 
   useLayoutEffect(() => {
     setClientReady(true);
@@ -221,6 +267,7 @@ export function HomeForm({
         body: JSON.stringify({
           dates: selectedDates,
           optionIds,
+          ...(isManager ? { forUserId: attendanceForUserId } : {}),
         }),
       });
       let data: unknown;
@@ -237,11 +284,23 @@ export function HomeForm({
           window.location.assign("/login");
           return;
         }
+        if (res.status === 403) {
+          toast.error("Bạn không được phép chấm công thay nhân viên này");
+          return;
+        }
         toast.error(body.error ?? "Không gửi được");
         return;
       }
-      toast.success(`Đã lưu ${body.count ?? 0} bản ghi chấm công`);
-      const again = await fetchMonthEntriesApi(year, month);
+      const suffix =
+        isManager && attendanceForUserId !== initialCurrentUserId
+          ? ` cho ${attendanceTargetShortLabel}`
+          : "";
+      toast.success(`Đã lưu ${body.count ?? 0} bản ghi chấm công${suffix}`);
+      const again = await fetchMonthEntriesApi(
+        year,
+        month,
+        isManager ? attendanceForUserId : undefined
+      );
       if (again.ok) setEntries(again.entries);
       else if (again.error === "Unauthorized") {
         toast.error("Phiên hết hạn — đăng nhập lại");
@@ -388,6 +447,7 @@ export function HomeForm({
             Đăng xuất
           </button>
         </div>
+        <IosPasskeyRegisterSection />
       </header>
 
       <div className="card">
@@ -399,6 +459,35 @@ export function HomeForm({
           Khi bạn chọn cả hai loại chấm công, hệ thống ghi nhận mỗi loại 
           + với <strong className="font-mono">/2</strong>.
         </p>
+        {clientReady && isManager ? (
+          <div className="form-field mb-5">
+            <label htmlFor="attendance-for-user" className="form-label">
+              Chấm công cho nhân viên
+            </label>
+            <select
+              id="attendance-for-user"
+              className="form-control w-full text-sm"
+              value={attendanceForUserId}
+              onChange={(e) => setAttendanceForUserId(e.target.value)}
+            >
+              <option value={initialCurrentUserId}>
+                Chính tôi — {initialFullName}
+                {initialEmployeeTypeName ? ` (${initialEmployeeTypeName})` : ""}
+              </option>
+              {initialStaffForManagerPicker.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.fullName}
+                  {s.employeeTypeName ? ` (${s.employeeTypeName})` : ""} —{" "}
+                  {s.phone}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-500">
+              Phần gửi bản ghi và bảng «Trong tháng» bên dưới áp dụng cho nhân viên được
+              chọn (quản lý có thể chấm giúp).
+            </p>
+          </div>
+        ) : null}
         <form
           onSubmit={handleAttendanceSubmit}
           className="flex flex-col gap-5"
@@ -571,6 +660,17 @@ export function HomeForm({
           <p className="text-sm text-slate-600">
             Lọc theo tháng và năm để xem lịch sử đã gửi
           </p>
+          {clientReady && isManager ? (
+            <p className="text-sm text-slate-600">
+              Đang hiển thị dữ liệu của:{" "}
+              <span className="font-semibold text-slate-800">
+                {attendanceForUserId === initialCurrentUserId
+                  ? `Bạn (${initialFullName})`
+                  : attendanceTargetShortLabel}
+              </span>
+              .
+            </p>
+          ) : null}
         </div>
 
         <div className="card py-4">

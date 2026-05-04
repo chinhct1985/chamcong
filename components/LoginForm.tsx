@@ -7,6 +7,7 @@ import {
   loginAction,
   type LoginFormState,
 } from "@/app/login/actions";
+import { FaceIdLoginIos } from "@/components/FaceIdLoginIos";
 
 const initialState: LoginFormState = { error: null };
 
@@ -66,6 +67,8 @@ export function LoginForm() {
             {pending ? "Đang xử lý…" : "Đăng nhập"}
           </button>
         </form>
+
+        <FaceIdLoginIos />
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Chưa có tài khoản?{" "}

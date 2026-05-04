@@ -32,12 +32,40 @@ model User {
   includeInManagerExcel Boolean  @default(true)
   employeeTypeId String?
   employeeType   EmployeeType?    @relation(fields: [employeeTypeId], references: [id], onDelete: Restrict)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime              @updatedAt
-  entries      AttendanceEntry[]
-  submitLogs   AttendanceSubmitLog[]
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  entries             AttendanceEntry[]
+  submitLogs          AttendanceSubmitLog[]
+  webAuthnCredentials UserWebAuthnCredential[]
 
   @@index([employeeTypeId])
+}
+
+/// Passkey / Face ID (WebAuthn) gắn với tài khoản user — đăng nhập không mật khẩu trên trình duyệt hỗ trợ (Safari iOS).
+model UserWebAuthnCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      BigInt   @default(0)
+  transports   Json?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Challenge WebAuthn một lần dùng (đăng ký / đăng nhập passkey).
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  challenge String
+  /// registration | authentication
+  kind      String
+  userId    String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 model DropdownOption {

@@ -43,6 +43,19 @@ export default async function HomePage() {
   const listYear = Number(listParts[0]) || serverNow.getFullYear();
   const listMonth = Number(listParts[1]) || serverNow.getMonth() + 1;
 
+  const staffForManagerPicker = user.isManager
+    ? await prisma.user.findMany({
+        where: { isActive: true, isManager: false },
+        select: {
+          id: true,
+          fullName: true,
+          phone: true,
+          employeeType: { select: { name: true } },
+        },
+        orderBy: { fullName: "asc" },
+      })
+    : [];
+
   const [initialOptions, initialEntries] = await Promise.all([
     listActiveDropdownOptions(),
     listAttendanceEntriesForMonth(userId, listYear, listMonth),
@@ -50,10 +63,17 @@ export default async function HomePage() {
 
   return (
     <HomeForm
+      initialCurrentUserId={userId}
       initialFullName={user.fullName}
       initialEmployeeTypeName={user.employeeType?.name ?? null}
       initialPhone={user.phone}
       initialIsManager={Boolean(user.isManager)}
+      initialStaffForManagerPicker={staffForManagerPicker.map((s) => ({
+        id: s.id,
+        fullName: s.fullName,
+        phone: s.phone,
+        employeeTypeName: s.employeeType?.name ?? null,
+      }))}
       initialDateYmd={initialDateYmd}
       initialOptions={initialOptions}
       initialEntries={initialEntries}

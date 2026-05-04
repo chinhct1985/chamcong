@@ -27,7 +27,33 @@
         { "name": "employeeTypeId", "type": "string", "optional": true, "fk": "EmployeeType.id" },
         { "name": "createdAt", "type": "datetime" },
         { "name": "updatedAt", "type": "datetime" },
-        { "name": "submitLogs", "type": "relation", "description": "Log gửi chấm công thành công" }
+        { "name": "submitLogs", "type": "relation", "description": "Log gửi chấm công thành công" },
+        { "name": "webAuthnCredentials", "type": "relation", "description": "Passkey / Face ID (WebAuthn)" }
+      ]
+    },
+    {
+      "name": "UserWebAuthnCredential",
+      "table": "UserWebAuthnCredential",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "userId", "type": "string", "fk": "User.id" },
+        { "name": "credentialId", "type": "string", "unique": true, "description": "Credential ID (base64url)" },
+        { "name": "publicKey", "type": "bytes", "description": "Khóa công khai COSE" },
+        { "name": "counter", "type": "bigint", "description": "Sign counter chống replay" },
+        { "name": "transports", "type": "json", "optional": true },
+        { "name": "createdAt", "type": "datetime" }
+      ]
+    },
+    {
+      "name": "WebAuthnChallenge",
+      "table": "WebAuthnChallenge",
+      "fields": [
+        { "name": "id", "type": "string", "pk": true },
+        { "name": "challenge", "type": "string", "description": "Challenge base64url một lần dùng" },
+        { "name": "kind", "type": "string", "description": "registration | authentication" },
+        { "name": "userId", "type": "string", "optional": true, "description": "Đăng ký: bắt buộc; đăng nhập: null" },
+        { "name": "expiresAt", "type": "datetime" },
+        { "name": "createdAt", "type": "datetime" }
       ]
     },
     {
@@ -82,6 +108,7 @@
     { "from": "User.employeeTypeId", "to": "EmployeeType.id", "kind": "many-to-one", "onDelete": "restrict" },
     { "from": "AttendanceEntry.userId", "to": "User.id", "kind": "many-to-one", "onDelete": "cascade" },
     { "from": "AttendanceEntry.optionId", "to": "DropdownOption.id", "kind": "many-to-one", "onDelete": "restrict" },
-    { "from": "AttendanceSubmitLog.userId", "to": "User.id", "kind": "many-to-one", "onDelete": "cascade" }
+    { "from": "AttendanceSubmitLog.userId", "to": "User.id", "kind": "many-to-one", "onDelete": "cascade" },
+    { "from": "UserWebAuthnCredential.userId", "to": "User.id", "kind": "many-to-one", "onDelete": "cascade" }
   ]
 }

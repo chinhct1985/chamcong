@@ -26,6 +26,8 @@
   "dependencies": {
     "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/client": "^6.19.3",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
     "bcrypt": "^6.0.0",
     "exceljs": "^4.4.0",
     "jose": "^6.2.2",

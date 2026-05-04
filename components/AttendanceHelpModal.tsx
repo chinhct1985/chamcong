@@ -163,7 +163,9 @@ export function AttendanceHelpModal({
               4. Tài khoản quản lý
             </h3>
             <p className="mb-3">
-              Nếu được phân quyền quản lý, khối <strong>Trong tháng</strong> có thêm hai nút:
+              Nếu được phân quyền quản lý, ở khối <strong>Gửi bản ghi chấm công</strong> có
+              thêm mục chọn <strong>nhân viên</strong> để chấm giúp — dữ liệu gửi và bảng «Trong tháng»
+              theo nhân viên đang chọn (mặc định «Chính tôi»). Ở khối «Trong tháng» có thêm hai nút:
             </p>
             <div className="overflow-x-auto rounded-lg border border-slate-200">
               <table className="min-w-full text-left text-sm">
