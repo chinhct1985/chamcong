@@ -13,6 +13,7 @@ export async function GET() {
       "GET /api/options",
       "POST /api/submit (tuỳ chọn forUserId — quản lý chấm hộ)",
       "GET /api/attendance/month?year=&month=&forUserId=",
+      "DELETE /api/attendance/entry?id=&forUserId= — xóa toàn bộ bản ghi của ngày đó (cả hai loại nếu có)",
       "POST /api/admin/login",
       "POST /api/admin/logout",
       "GET /api/admin/users",

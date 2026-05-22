@@ -137,6 +137,8 @@ export function HomeForm({
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingLogs, setExportingLogs] = useState(false);
+  /** Đang gọi API xóa bản ghi trong bảng «Trong tháng». */
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   /** Chỉ hiện UI chỉ-dành-cho-quản-lý sau khi client commit — SSR + lần hydrate đầu cùng không render (tránh lệch cây). */
   const [clientReady, setClientReady] = useState(false);
@@ -184,6 +186,60 @@ export function HomeForm({
       setLoading(false);
     }
   }, [year, month, router, isManager, attendanceForUserId]);
+
+  async function deleteMonthEntry(entry: Entry) {
+    const dateLabel = formatVnDmyFromYmd(entry.date);
+    if (
+      !confirm(
+        `Xóa toàn bộ chấm công của ngày ${dateLabel}?\n` +
+          "(Nếu ngày này có 2 loại cùng lúc, cả hai sẽ bị xóa.)"
+      )
+    ) {
+      return;
+    }
+    const q = new URLSearchParams({ id: entry.id });
+    if (isManager && attendanceForUserId !== initialCurrentUserId) {
+      q.set("forUserId", attendanceForUserId);
+    }
+    setDeletingEntryId(entry.id);
+    try {
+      const res = await fetch(`/api/attendance/entry?${q}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      let body: unknown;
+      try {
+        body = await res.json();
+      } catch {
+        toast.error("Phản hồi không hợp lệ");
+        return;
+      }
+      const o = body as { error?: string; count?: number };
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast.error("Phiên hết hạn — đăng nhập lại");
+          router.push("/login");
+          return;
+        }
+        if (res.status === 403) {
+          toast.error("Bạn không có quyền xóa bản ghi này");
+          return;
+        }
+        toast.error(o.error ?? "Không xóa được");
+        return;
+      }
+      const n =
+        typeof o.count === "number" && o.count >= 2
+          ? ` (${o.count} bản ghi)`
+          : "";
+      toast.success(`Đã xóa chấm công ngày ${dateLabel}${n}`);
+      await loadMonth();
+    } catch {
+      toast.error("Lỗi mạng — thử lại");
+    } finally {
+      setDeletingEntryId(null);
+    }
+  }
 
   useLayoutEffect(() => {
     setClientReady(true);
@@ -629,7 +685,7 @@ export function HomeForm({
                     value={optCombobox2}
                     onChange={(e) => setOptCombobox2(e.target.value)}
                   >
-                    <option value="">— Không dùng —</option>
+                    <option value="">— Chọn Loại 2 —</option>
                     {initialOptions.map((o) => (
                       <option key={o.id} value={o.id}>
                         {o.label} · {o.name}
@@ -739,13 +795,16 @@ export function HomeForm({
                   <th className="px-4 py-3 font-semibold">Ngày</th>
                   <th className="px-4 py-3 font-semibold">Mã</th>
                   <th className="px-4 py-3 font-semibold">Tên</th>
+                  <th className="w-24 px-2 py-3 text-right font-semibold">
+                    Xóa
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {entries.length === 0 ? (
                   <tr className="bg-white">
                     <td
-                      colSpan={3}
+                      colSpan={4}
                       className="table-cell py-8 text-center text-slate-500"
                     >
                       Chưa có dữ liệu trong tháng này.
@@ -770,6 +829,19 @@ export function HomeForm({
                       </td>
                       <td className="table-cell text-slate-800">
                         {row.optionName}
+                      </td>
+                      <td className="p-2 text-right align-middle">
+                        <button
+                          type="button"
+                          disabled={
+                            deletingEntryId !== null || loading || submitting
+                          }
+                          onClick={() => void deleteMonthEntry(row)}
+                          className="rounded-md px-2 py-1 text-xs font-medium text-red-700 underline-offset-2 hover:bg-red-50 hover:text-red-800 hover:underline disabled:opacity-50"
+                          aria-label={`Xóa toàn bộ chấm công ngày ${formatVnDmyFromYmd(row.date)}`}
+                        >
+                          {deletingEntryId === row.id ? "Đang xóa…" : "Xóa"}
+                        </button>
                       </td>
                     </tr>
                   ))
