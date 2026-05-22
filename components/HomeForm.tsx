@@ -14,6 +14,7 @@ import { IosPasskeyRegisterSection } from "@/components/IosPasskeyRegisterSectio
 import { useRouter } from "next/navigation";
 import { formatVnDmyFromYmd } from "@/lib/attendance-submit-log";
 import { toast } from "sonner";
+import { regularUserAttendanceDateViolates } from "@/lib/attendance-editable-rules";
 
 type Opt = { id: string; label: string; name: string };
 type Entry = { id: string; date: string; optionCode: string; optionName: string };
@@ -188,6 +189,13 @@ export function HomeForm({
   }, [year, month, router, isManager, attendanceForUserId]);
 
   async function deleteMonthEntry(entry: Entry) {
+    if (!isManager) {
+      const msg = regularUserAttendanceDateViolates(entry.date);
+      if (msg) {
+        toast.error(msg);
+        return;
+      }
+    }
     const dateLabel = formatVnDmyFromYmd(entry.date);
     if (
       !confirm(
@@ -222,7 +230,7 @@ export function HomeForm({
           return;
         }
         if (res.status === 403) {
-          toast.error("Bạn không có quyền xóa bản ghi này");
+          toast.error(o.error ?? "Không được phép xóa");
           return;
         }
         toast.error(o.error ?? "Không xóa được");
@@ -293,9 +301,23 @@ export function HomeForm({
 
   function toggleAttDate(ymd: string) {
     setSelectedDates((prev) => {
-      if (prev.includes(ymd)) return prev.filter((d) => d !== ymd);
+      const on = prev.includes(ymd);
+      if (on) return prev.filter((d) => d !== ymd);
+      if (!isManager) {
+        const msg = regularUserAttendanceDateViolates(ymd);
+        if (msg) {
+          queueMicrotask(() => toast.error(msg));
+          return prev;
+        }
+      }
       return [...prev, ymd].sort();
     });
+  }
+
+  /** Nút lịch: khóa theo quy tắc nhân viên (server cũng chặn). */
+  function attendanceDayLockMessage(ymd: string): string | undefined {
+    if (isManager) return undefined;
+    return regularUserAttendanceDateViolates(ymd);
   }
 
   async function submitAttendance() {
@@ -313,6 +335,15 @@ export function HomeForm({
     if (optionIds.length === 2 && optionIds[0] === optionIds[1]) {
       toast.error("Hai loại phải khác nhau");
       return;
+    }
+    if (!isManager) {
+      for (const d of selectedDates) {
+        const msg = regularUserAttendanceDateViolates(d);
+        if (msg) {
+          toast.error(msg);
+          return;
+        }
+      }
     }
     setSubmitting(true);
     try {
@@ -341,7 +372,9 @@ export function HomeForm({
           return;
         }
         if (res.status === 403) {
-          toast.error("Bạn không được phép chấm công thay nhân viên này");
+          toast.error(
+            body.error ?? "Không được phép thực hiện thao tác này"
+          );
           return;
         }
         toast.error(body.error ?? "Không gửi được");
@@ -515,6 +548,12 @@ export function HomeForm({
           Khi bạn chọn cả hai loại chấm công, hệ thống ghi nhận mỗi loại 
           + với <strong className="font-mono">/2</strong>.
         </p>
+        {clientReady && !isManager ? (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            <strong>Nhân viên:</strong> đã sang tháng mới thì không gửi/xóa dữ liệu tháng trước;
+            trong cùng một tháng, từ ngày 16 không chỉnh được các ngày 1 đến 15.
+          </p>
+        ) : null}
         {clientReady && isManager ? (
           <div className="form-field mb-5">
             <label htmlFor="attendance-for-user" className="form-label">
@@ -623,18 +662,25 @@ export function HomeForm({
                     return <div key={`empty-${i}`} className="min-h-10" />;
                   }
                   const ymd = toYmd(y, m, d);
-                  const on = selectedDates.includes(ymd);
+                  const lockMsg = attendanceDayLockMessage(ymd);
+                  const locked = Boolean(lockMsg);
+                  const selected = selectedDates.includes(ymd);
                   return (
                     <button
                       key={ymd}
                       type="button"
                       onClick={() => toggleAttDate(ymd)}
-                      aria-pressed={on}
+                      disabled={locked}
+                      title={lockMsg}
+                      aria-disabled={locked}
+                      aria-pressed={selected}
                       className={[
                         "min-h-10 rounded-lg text-sm font-mono transition-colors",
-                        on
-                          ? "bg-blue-600 font-semibold text-white shadow-sm"
-                          : "bg-white text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50",
+                        locked
+                          ? "cursor-not-allowed bg-slate-100 text-slate-400 ring-1 ring-slate-200"
+                          : selected
+                            ? "bg-blue-600 font-semibold text-white shadow-sm"
+                            : "bg-white text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50",
                       ].join(" ")}
                     >
                       {d}
@@ -811,7 +857,12 @@ export function HomeForm({
                     </td>
                   </tr>
                 ) : (
-                  entries.map((row, i) => (
+                  entries.map((row, i) => {
+                    const rowLockReason = !isManager
+                      ? regularUserAttendanceDateViolates(row.date)
+                      : undefined;
+                    const rowLocked = Boolean(rowLockReason);
+                    return (
                     <tr
                       key={row.id}
                       className={[
@@ -834,17 +885,31 @@ export function HomeForm({
                         <button
                           type="button"
                           disabled={
-                            deletingEntryId !== null || loading || submitting
+                            rowLocked ||
+                            deletingEntryId !== null ||
+                            loading ||
+                            submitting
                           }
+                          title={rowLockReason ?? undefined}
                           onClick={() => void deleteMonthEntry(row)}
-                          className="rounded-md px-2 py-1 text-xs font-medium text-red-700 underline-offset-2 hover:bg-red-50 hover:text-red-800 hover:underline disabled:opacity-50"
+                          className={[
+                            "rounded-md px-2 py-1 text-xs font-medium underline-offset-2 disabled:opacity-50",
+                            rowLocked
+                              ? "cursor-not-allowed text-slate-400"
+                              : "text-red-700 hover:bg-red-50 hover:text-red-800 hover:underline",
+                          ].join(" ")}
                           aria-label={`Xóa toàn bộ chấm công ngày ${formatVnDmyFromYmd(row.date)}`}
                         >
-                          {deletingEntryId === row.id ? "Đang xóa…" : "Xóa"}
+                          {deletingEntryId === row.id
+                            ? "Đang xóa…"
+                            : rowLocked
+                              ? "Khóa"
+                              : "Xóa"}
                         </button>
                       </td>
                     </tr>
-                  ))
+                  );
+                  })
                 )}
               </tbody>
             </table>

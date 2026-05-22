@@ -142,6 +142,24 @@ export function AttendanceHelpModal({
                 Muốn sửa một ngày: chỉ <strong>tích đúng ngày đó</strong>, chọn đúng loại, rồi gửi.
               </li>
             </ul>
+
+            <h4 className="mb-1.5 mt-4 text-[0.9375rem] font-medium text-slate-800">
+              2.5. Thời hạn gửi / xóa (áp nhân viên — quản lý không bị giới hạn)
+            </h4>
+            <ul className="list-inside list-disc space-y-1.5 marker:text-amber-600">
+              <li>
+                Đã <strong>sang tháng mới</strong> (theo giờ Việt Nam): không gửi và không xóa được các
+                ngày thuộc <strong>các tháng trước</strong>.
+              </li>
+              <li>
+                Trong <strong>cùng một tháng</strong> với hôm nay: từ <strong>ngày 16</strong> trở đi
+                không chỉnh được các ngày <strong>1 đến 15</strong> của tháng đó (gửi và xóa đều bị khóa).
+              </li>
+              <li>
+                Ngày khóa trên lịch ô <strong>xám</strong>; cột «Xóa» có thể hiện «Khóa» — xem chi tiết
+                bằng gợi ý khi rê chuột (thiết bị cảm ứng: giữ ô hoặc bảng hướng dẫn trên form).
+              </li>
+            </ul>
           </section>
 
           <section className="mb-6">
@@ -153,7 +171,8 @@ export function AttendanceHelpModal({
                 Chọn <strong>Tháng</strong> và <strong>Năm</strong>; có trạng thái «Đang tải…» khi đổi.
               </li>
               <li>
-                Bảng có cột Ngày, Mã, Tên. Lịch phía trên và lọc tháng/năm ở đây độc lập nhau.
+                Bảng có cột Ngày, Mã, Tên và (khi được phép) <strong>Xóa</strong> — xóa cả hai loại trong
+                ngày nếu có. Nhân viên có ngày bị khóa theo mục 2.5 ở hướng dẫn trên (nút «Khóa»).
               </li>
             </ul>
           </section>

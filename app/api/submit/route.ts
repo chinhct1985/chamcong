@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { regularUserAttendanceDateViolates } from "@/lib/attendance-editable-rules";
 import { resolveAttendanceTargetUserId } from "@/lib/attendance-target-user";
 import { prisma } from "@/lib/db";
 import { getUserIdFromCookie } from "@/lib/session";
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
   }
   const targetUserId = resolved.targetUserId;
 
+  /** Chỉ quản lý được chỉnh mọi mốc; nhân viên chịu quy tắc khóa tháng / nửa đầu tháng. */
+  const skipRegularUserWindowRule = Boolean(user.isManager);
+
   const datesRaw = (obj as { dates?: unknown }).dates;
   const optionIdsRaw = (obj as { optionIds?: unknown }).optionIds;
   if (Array.isArray(datesRaw) && Array.isArray(optionIdsRaw)) {
@@ -54,6 +58,14 @@ export async function POST(request: Request) {
     const optionIds = optionIdsRaw.filter(
       (d): d is string => typeof d === "string"
     );
+    if (!skipRegularUserWindowRule) {
+      for (const ymd of dates) {
+        const v = regularUserAttendanceDateViolates(ymd);
+        if (v) {
+          return NextResponse.json({ error: v }, { status: 403 });
+        }
+      }
+    }
     const result = await replaceAttendanceForUserBulk(
       targetUserId,
       dates,
@@ -73,6 +85,13 @@ export async function POST(request: Request) {
     "optionId" in obj && typeof (obj as { optionId?: unknown }).optionId === "string"
       ? (obj as { optionId: string }).optionId
       : "";
+
+  if (!skipRegularUserWindowRule && dateStr) {
+    const v = regularUserAttendanceDateViolates(dateStr);
+    if (v) {
+      return NextResponse.json({ error: v }, { status: 403 });
+    }
+  }
 
   const result = await upsertAttendanceForUser(
     targetUserId,

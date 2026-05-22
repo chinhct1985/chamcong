@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  prismaDateOnlyToYmd,
+  regularUserAttendanceDateViolates,
+} from "@/lib/attendance-editable-rules";
 import { resolveAttendanceTargetUserId } from "@/lib/attendance-target-user";
 import { prisma } from "@/lib/db";
 import { getUserIdFromCookie } from "@/lib/session";
@@ -60,6 +64,14 @@ export async function DELETE(request: Request) {
       { error: "Không tìm thấy bản ghi chấm công trong phạm vi được phép xóa" },
       { status: 404, ...noStoreJson }
     );
+  }
+
+  if (!actor.isManager) {
+    const ymd = prismaDateOnlyToYmd(existing.date);
+    const v = regularUserAttendanceDateViolates(ymd);
+    if (v) {
+      return NextResponse.json({ error: v }, { status: 403, ...noStoreJson });
+    }
   }
 
   const deleted = await prisma.attendanceEntry.deleteMany({
