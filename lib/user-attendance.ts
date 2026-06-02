@@ -1,5 +1,9 @@
 import { createId } from "@paralleldrive/cuid2";
 import { Prisma, PrismaClient } from "@prisma/client";
+import {
+  formatAttendanceCodesForDay,
+  formatAttendanceNamesForDay,
+} from "@/lib/attendance-day-display";
 import { buildAttendanceSubmitLogMessage } from "@/lib/attendance-submit-log";
 import { computeTheoDoiBuMetricsForByDay } from "@/lib/manager-month-excel";
 import { prisma } from "@/lib/db";
@@ -85,20 +89,25 @@ export async function listAttendanceEntriesForMonth(
       AND e.date <= ${end}::date
     ORDER BY e.date ASC, e."optionSlot" ASC, e.id ASC
   `;
-  const onePerDate = new Map<string, (typeof rows)[0]>();
+  const byDate = new Map<string, (typeof rows)[number][]>();
   for (const r of rows) {
     const key = r.date.toISOString().slice(0, 10);
-    if (!onePerDate.has(key)) onePerDate.set(key, r);
+    const bucket = byDate.get(key);
+    if (bucket) bucket.push(r);
+    else byDate.set(key, [r]);
   }
-  const sorted = [...onePerDate.values()].sort(
-    (a, b) => a.date.getTime() - b.date.getTime()
-  );
-  return sorted.map((r) => ({
-    id: r.id,
-    date: r.date.toISOString().slice(0, 10),
-    optionCode: r.label + (r.codeSuffix ?? ""),
-    optionName: r.name,
-  }));
+  const sortedDates = [...byDate.keys()].sort();
+  return sortedDates.map((ymd) => {
+    const dayRows = byDate.get(ymd)!;
+    const codes = dayRows.map((r) => r.label + (r.codeSuffix ?? ""));
+    const names = dayRows.map((r) => r.name);
+    return {
+      id: dayRows[0]!.id,
+      date: ymd,
+      optionCode: formatAttendanceCodesForDay(codes),
+      optionName: formatAttendanceNamesForDay(names),
+    };
+  });
 }
 
 /** Ma trận chấm công cả tháng cho mọi user active; dùng xuất Excel (quản lý). */
@@ -168,8 +177,7 @@ export async function buildManagerMonthAttendanceMatrix(
     ORDER BY e."userId" ASC, e.date ASC, e."optionSlot" ASC, e.id ASC
   `;
 
-  /** Mỗi (user, ngày) chỉ mã từ bản ghi optionSlot nhỏ nhất (0 = combobox 1). */
-  const byUserDay = new Map<string, Map<number, string>>();
+  const byUserDay = new Map<string, Map<number, string[]>>();
   for (const e of entries) {
     const day = e.date.getUTCDate();
     let mMap = byUserDay.get(e.userId);
@@ -177,16 +185,18 @@ export async function buildManagerMonthAttendanceMatrix(
       mMap = new Map();
       byUserDay.set(e.userId, mMap);
     }
-    if (mMap.has(day)) continue;
     const code = e.label + (e.codeSuffix ?? "");
-    mMap.set(day, code);
+    const bucket = mMap.get(day);
+    if (bucket) bucket.push(code);
+    else mMap.set(day, [code]);
   }
 
   const rows: ManagerMonthMatrixRow[] = users.map((u) => {
     const dayMap = byUserDay.get(u.id);
     const byDay: string[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
-      byDay.push(dayMap?.get(d) ?? "");
+      const codes = dayMap?.get(d);
+      byDay.push(codes ? formatAttendanceCodesForDay(codes) : "");
     }
     return { userId: u.id, fullName: u.fullName, byDay };
   });
@@ -241,8 +251,7 @@ export async function computeBuConLaiKetThangTruocTheoNguoi(
     ORDER BY e."userId" ASC, e.date ASC, e."optionSlot" ASC, e.id ASC
   `;
 
-  /** userId -> "y-m" -> day -> mã 1 dòng (optionSlot min). */
-  const byUserYmk = new Map<string, Map<string, Map<number, string>>>();
+  const byUserYmk = new Map<string, Map<string, Map<number, string[]>>>();
   for (const e of rawRows) {
     const d = e.date.getUTCDate();
     const y = e.date.getUTCFullYear();
@@ -252,8 +261,10 @@ export async function computeBuConLaiKetThangTruocTheoNguoi(
     const m1 = byUserYmk.get(e.userId)!;
     if (!m1.has(key)) m1.set(key, new Map());
     const dayMap = m1.get(key)!;
-    if (dayMap.has(d)) continue;
-    dayMap.set(d, e.label + (e.codeSuffix ?? ""));
+    const code = e.label + (e.codeSuffix ?? "");
+    const bucket = dayMap.get(d);
+    if (bucket) bucket.push(code);
+    else dayMap.set(d, [code]);
   }
 
   const holiCache = new Map<string, Set<string>>();
@@ -273,7 +284,8 @@ export async function computeBuConLaiKetThangTruocTheoNguoi(
       const dayM = byUserYmk.get(u.id)?.get(ymk);
       const byDay: string[] = [];
       for (let d = 1; d <= dim; d++) {
-        byDay.push(dayM?.get(d) ?? "");
+        const codes = dayM?.get(d);
+        byDay.push(codes ? formatAttendanceCodesForDay(codes) : "");
       }
       const hset = holiCache.get(ymk)!;
       const { tongBuuPhatSinh, buSuDung } = computeTheoDoiBuMetricsForByDay(

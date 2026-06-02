@@ -158,7 +158,7 @@ function sheet1DayColumnWidth(
   daysInMonth: number
 ): number {
   let maxChars = 3;
-  for (const x of ["T2", "T7", "CN", "L", "No/2", "P/2", "P, No", "X/2"]) {
+  for (const x of ["T2", "T7", "CN", "L", "No/2", "P/2", "P, No", "X/2", "X/O"]) {
     maxChars = Math.max(maxChars, unicodeCharCount(x));
   }
   for (const row of rows) {
@@ -247,7 +247,7 @@ function scoreXFromCellText(text: string): number {
   let t = 0;
   for (const raw of String(text).split(",")) {
     const w = raw.trim();
-    if (w === "X/2") t += 0.5;
+    if (w === "X/2" || w === "X/O") t += 0.5;
     else if (w === "X") t += 1;
   }
   return t;
