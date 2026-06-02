@@ -1,6 +1,8 @@
 /**
- * Gộp mã Loại CC trong cùng một ngày để hiển thị (bảng tháng, Excel).
- * Hai nửa ngày X + O → ký hiệu đặc biệt «X/O» (thay vì «X/2, O/2»).
+ * Mã hiển thị trong một ngày (bảng tháng, Excel).
+ * - 1 loại: mã đầy đủ (có thể kèm /2).
+ * - 2 loại X + O: «X/O».
+ * - 2 loại khác: chỉ loại đầu (combobox 1, đã có /2 khi chấm nửa ngày).
  */
 export function formatAttendanceCodesForDay(codes: string[]): string {
   const list = codes.map((c) => c.trim()).filter(Boolean);
@@ -16,12 +18,5 @@ export function formatAttendanceCodesForDay(codes: string[]): string {
   ) {
     return "X/O";
   }
-  return list.join(", ");
-}
-
-export function formatAttendanceNamesForDay(names: string[]): string {
-  const list = names.map((n) => n.trim()).filter(Boolean);
-  if (list.length === 0) return "";
-  if (list.length === 1) return list[0]!;
-  return list.join(" · ");
+  return list[0]!;
 }

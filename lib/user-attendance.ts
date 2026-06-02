@@ -1,9 +1,6 @@
 import { createId } from "@paralleldrive/cuid2";
 import { Prisma, PrismaClient } from "@prisma/client";
-import {
-  formatAttendanceCodesForDay,
-  formatAttendanceNamesForDay,
-} from "@/lib/attendance-day-display";
+import { formatAttendanceCodesForDay } from "@/lib/attendance-day-display";
 import { buildAttendanceSubmitLogMessage } from "@/lib/attendance-submit-log";
 import { computeTheoDoiBuMetricsForByDay } from "@/lib/manager-month-excel";
 import { prisma } from "@/lib/db";
@@ -100,12 +97,12 @@ export async function listAttendanceEntriesForMonth(
   return sortedDates.map((ymd) => {
     const dayRows = byDate.get(ymd)!;
     const codes = dayRows.map((r) => r.label + (r.codeSuffix ?? ""));
-    const names = dayRows.map((r) => r.name);
+    const first = dayRows[0]!;
     return {
-      id: dayRows[0]!.id,
+      id: first.id,
       date: ymd,
       optionCode: formatAttendanceCodesForDay(codes),
-      optionName: formatAttendanceNamesForDay(names),
+      optionName: first.name,
     };
   });
 }
@@ -177,6 +174,7 @@ export async function buildManagerMonthAttendanceMatrix(
     ORDER BY e."userId" ASC, e.date ASC, e."optionSlot" ASC, e.id ASC
   `;
 
+  /** Gom mã theo ngày (optionSlot ASC) để nhận diện X+O; hiển thị qua formatAttendanceCodesForDay. */
   const byUserDay = new Map<string, Map<number, string[]>>();
   for (const e of entries) {
     const day = e.date.getUTCDate();
