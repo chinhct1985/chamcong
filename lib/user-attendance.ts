@@ -112,6 +112,9 @@ export type ManagerMonthMatrixRow = {
   userId: string;
   fullName: string;
   byDay: string[];
+  /** Theo cờ loại nhân viên — lọc khi ghi từng sheet Excel. */
+  includeInChamCongExcel: boolean;
+  includeInTheoDoiBuExcel: boolean;
 };
 
 /** Mỗi tháng từ 1/(exportYear-1) đến hết tháng trước tháng xuất (inclusive) — tính dư «Bù còn lại» cuối tháng trước tháng xuất. */
@@ -148,7 +151,13 @@ export async function buildManagerMonthAttendanceMatrix(
     select: {
       id: true,
       fullName: true,
-      employeeType: { select: { sortOrder: true } },
+      employeeType: {
+        select: {
+          sortOrder: true,
+          includeInChamCongExcel: true,
+          includeInTheoDoiBuExcel: true,
+        },
+      },
     },
   });
   users.sort((a, b) => {
@@ -196,7 +205,13 @@ export async function buildManagerMonthAttendanceMatrix(
       const codes = dayMap?.get(d);
       byDay.push(codes ? formatAttendanceCodesForDay(codes) : "");
     }
-    return { userId: u.id, fullName: u.fullName, byDay };
+    return {
+      userId: u.id,
+      fullName: u.fullName,
+      byDay,
+      includeInChamCongExcel: u.employeeType?.includeInChamCongExcel ?? false,
+      includeInTheoDoiBuExcel: u.employeeType?.includeInTheoDoiBuExcel ?? false,
+    };
   });
 
   return { daysInMonth, rows };

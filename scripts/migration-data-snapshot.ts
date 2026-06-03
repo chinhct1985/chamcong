@@ -31,6 +31,8 @@ export type MigrationSnapshot = {
     id: string;
     name: string;
     sortOrder: number;
+    includeInChamCongExcel?: boolean;
+    includeInTheoDoiBuExcel?: boolean;
     createdAt: JsonDate;
     updatedAt: JsonDate;
   }[];
@@ -187,6 +189,8 @@ async function cmdImport(filePath: string, force: boolean) {
               id: row.id,
               name: row.name,
               sortOrder: row.sortOrder,
+              includeInChamCongExcel: row.includeInChamCongExcel ?? true,
+              includeInTheoDoiBuExcel: row.includeInTheoDoiBuExcel ?? true,
               createdAt: new Date(row.createdAt),
               updatedAt: new Date(row.updatedAt),
             })),

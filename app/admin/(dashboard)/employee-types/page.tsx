@@ -9,6 +9,8 @@ export default async function AdminEmployeeTypesPage() {
     id: t.id,
     name: t.name,
     sortOrder: t.sortOrder,
+    includeInChamCongExcel: t.includeInChamCongExcel,
+    includeInTheoDoiBuExcel: t.includeInTheoDoiBuExcel,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   }));
@@ -23,8 +25,9 @@ export default async function AdminEmployeeTypesPage() {
           Loại nhân viên
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Tên loại và thứ tự sắp xếp (dùng khi xuất Excel và danh sách admin). Đăng ký
-          tài khoản mới bắt buộc chọn một loại.
+          Tên loại, thứ tự sắp xếp và cờ xuất Excel (sheet Chấm công / Theo dõi bù).
+          Nhân viên vẫn cần bật «File Excel chấm công» ở trang Users. Đăng ký mới bắt buộc
+          chọn một loại.
         </p>
       </header>
       <AdminEmployeeTypesPanel initialTypes={initialTypes} />

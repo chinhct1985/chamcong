@@ -637,9 +637,11 @@ export async function buildManagerMonthExcelBuffer(
   daysInMonth: number,
   /** YYYY-MM-DD: ngày lễ do admin; gộp với lễ dương lịch mặc định trong mã. */
   adminHolidayYmd: Set<string> = new Set(),
-  /** Cột «Bù còn lại tháng trước» = dư «Bù còn lại» cuối tháng trước (cùng thứ tự dòng với matrixRows). */
-  buConLaiThangTruoc: number[] = []
+  /** userId → «Bù còn lại tháng trước» (sheet Theo dõi bù). */
+  buConLaiThangTruoc: Map<string, number> = new Map()
 ): Promise<Buffer> {
+  const chamCongRows = matrixRows.filter((r) => r.includeInChamCongExcel);
+  const theoDoiBuRows = matrixRows.filter((r) => r.includeInTheoDoiBuExcel);
   const wb = new ExcelJS.Workbook();
   wb.creator = "ChamCong";
   const freezeRows = REPORT_HEADER_ROW_COUNT + 3;
@@ -761,7 +763,7 @@ export async function buildManagerMonthExcelBuffer(
 
   // --- Dòng dữ liệu ---
   let excelRow = h3 + 1;
-  matrixRows.forEach((row, idx) => {
+  chamCongRows.forEach((row, idx) => {
     const r = ws.getRow(excelRow);
     r.getCell(1).value = idx + 1;
     r.getCell(2).value = row.fullName;
@@ -858,8 +860,8 @@ export async function buildManagerMonthExcelBuffer(
 
   applyChamCongFooter(ws, excelRow, lastCol);
 
-  const dayColW = sheet1DayColumnWidth(matrixRows, daysInMonth);
-  const hoTenW = sheet1HoTenColumnWidth(matrixRows);
+  const dayColW = sheet1DayColumnWidth(chamCongRows, daysInMonth);
+  const hoTenW = sheet1HoTenColumnWidth(chamCongRows);
   /** Excel dùng đơn vị theo ký tự; ~5px ≈ 5/7 đơn vị (Calibri mặc định). */
   const w5px = 5 / 7;
 
@@ -935,7 +937,7 @@ export async function buildManagerMonthExcelBuffer(
   });
 
   let buRow = buHeaderRow + 1;
-  matrixRows.forEach((row, idx) => {
+  theoDoiBuRows.forEach((row, idx) => {
     const r = buRow;
     const ngayPhatSinh: string[] = [];
     let tongBuuPhatSinh = 0;
@@ -952,7 +954,7 @@ export async function buildManagerMonthExcelBuffer(
         }
       }
     }
-    const buDau = buConLaiThangTruoc[idx] ?? 0;
+    const buDau = buConLaiThangTruoc.get(row.userId) ?? 0;
     const dataRow = wsBu.getRow(r);
     dataRow.getCell(1).value = idx + 1;
     dataRow.getCell(2).value = row.fullName;
@@ -990,9 +992,9 @@ export async function buildManagerMonthExcelBuffer(
 
   applyBuSheetFooter(wsBu, buRow, BU_SHEET_LAST_COL);
 
-  const buHoTenW = sheet2HoTenColumnWidth(matrixRows);
+  const buHoTenW = sheet2HoTenColumnWidth(theoDoiBuRows);
   const buCol5W = sheet2NgayPhatSinhColumnWidth(
-    matrixRows,
+    theoDoiBuRows,
     year,
     month,
     daysInMonth,

@@ -352,12 +352,24 @@ export async function adminDeleteOption(id: string): Promise<
 const employeeTypeCreateSchema = z.object({
   name: z.string().trim().min(1, "Tên không được để trống"),
   sortOrder: z.number().int().optional(),
+  includeInChamCongExcel: z.boolean().optional(),
+  includeInTheoDoiBuExcel: z.boolean().optional(),
 });
 
 const employeeTypePatchSchema = z.object({
   name: z.string().trim().min(1).optional(),
   sortOrder: z.number().int().optional(),
+  includeInChamCongExcel: z.boolean().optional(),
+  includeInTheoDoiBuExcel: z.boolean().optional(),
 });
+
+const employeeTypeSelect = {
+  id: true,
+  name: true,
+  sortOrder: true,
+  includeInChamCongExcel: true,
+  includeInTheoDoiBuExcel: true,
+} as const;
 
 export async function listEmployeeTypesPublic() {
   return prisma.employeeType.findMany({
@@ -373,7 +385,16 @@ export async function adminListEmployeeTypes() {
 }
 
 export async function adminCreateEmployeeType(body: unknown): Promise<
-  | { ok: true; row: { id: string; name: string; sortOrder: number } }
+  | {
+      ok: true;
+      row: {
+        id: string;
+        name: string;
+        sortOrder: number;
+        includeInChamCongExcel: boolean;
+        includeInTheoDoiBuExcel: boolean;
+      };
+    }
   | { ok: false; error: string; status: number }
 > {
   const parsed = employeeTypeCreateSchema.safeParse(body);
@@ -381,10 +402,16 @@ export async function adminCreateEmployeeType(body: unknown): Promise<
     const msg = parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ";
     return { ok: false, error: msg, status: 400 };
   }
-  const { name, sortOrder } = parsed.data;
+  const { name, sortOrder, includeInChamCongExcel, includeInTheoDoiBuExcel } =
+    parsed.data;
   const row = await prisma.employeeType.create({
-    data: { name, sortOrder: sortOrder ?? 0 },
-    select: { id: true, name: true, sortOrder: true },
+    data: {
+      name,
+      sortOrder: sortOrder ?? 0,
+      includeInChamCongExcel: includeInChamCongExcel ?? true,
+      includeInTheoDoiBuExcel: includeInTheoDoiBuExcel ?? true,
+    },
+    select: employeeTypeSelect,
   });
   return { ok: true, row };
 }
@@ -393,7 +420,16 @@ export async function adminPatchEmployeeType(
   id: string,
   body: unknown
 ): Promise<
-  | { ok: true; row: { id: string; name: string; sortOrder: number } }
+  | {
+      ok: true;
+      row: {
+        id: string;
+        name: string;
+        sortOrder: number;
+        includeInChamCongExcel: boolean;
+        includeInTheoDoiBuExcel: boolean;
+      };
+    }
   | { ok: false; error: string; status: number }
 > {
   const parsed = employeeTypePatchSchema.safeParse(body);
@@ -408,7 +444,7 @@ export async function adminPatchEmployeeType(
     const row = await prisma.employeeType.update({
       where: { id },
       data,
-      select: { id: true, name: true, sortOrder: true },
+      select: employeeTypeSelect,
     });
     return { ok: true, row };
   } catch {

@@ -9,6 +9,8 @@
         { "name": "id", "type": "string", "pk": true },
         { "name": "name", "type": "string", "description": "Tên loại (Bác sĩ, NHS, …)" },
         { "name": "sortOrder", "type": "int", "default": 0, "description": "Thứ tự sắp xếp / Excel" },
+        { "name": "includeInChamCongExcel", "type": "boolean", "default": true, "description": "Xuất sheet Chấm công (Excel quản lý)" },
+        { "name": "includeInTheoDoiBuExcel", "type": "boolean", "default": true, "description": "Xuất sheet Theo dõi bù (Excel quản lý)" },
         { "name": "createdAt", "type": "datetime" },
         { "name": "updatedAt", "type": "datetime" }
       ]

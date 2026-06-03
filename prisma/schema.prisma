@@ -14,6 +14,10 @@ model EmployeeType {
   id        String   @id @default(cuid())
   name      String
   sortOrder Int      @default(0)
+  /// Gồm nhân viên loại này trong sheet «Chấm công» khi xuất Excel quản lý.
+  includeInChamCongExcel   Boolean @default(true)
+  /// Gồm nhân viên loại này trong sheet «Theo dõi bù» khi xuất Excel quản lý.
+  includeInTheoDoiBuExcel  Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]

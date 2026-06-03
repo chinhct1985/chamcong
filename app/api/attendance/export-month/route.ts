@@ -50,16 +50,13 @@ export async function GET(request: Request) {
     getPublicHolidayYmdSetForMonth(y, m),
   ]);
   const { daysInMonth, rows } = monthBlock;
-  const buConLaiThangTruoc = rows.map(
-    (r) => buMap.get(r.userId) ?? 0
-  );
   const buf = await buildManagerMonthExcelBuffer(
     y,
     m,
     rows,
     daysInMonth,
     adminHolidayYmd,
-    buConLaiThangTruoc
+    buMap
   );
   const fileBytes = new Uint8Array(buf);
 
