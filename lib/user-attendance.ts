@@ -209,8 +209,9 @@ export async function buildManagerMonthAttendanceMatrix(
       userId: u.id,
       fullName: u.fullName,
       byDay,
-      includeInChamCongExcel: u.employeeType?.includeInChamCongExcel ?? false,
-      includeInTheoDoiBuExcel: u.employeeType?.includeInTheoDoiBuExcel ?? false,
+      /** Không gán loại NV → vẫn xuất (tương thích trước khi có cờ theo loại). */
+      includeInChamCongExcel: u.employeeType?.includeInChamCongExcel ?? true,
+      includeInTheoDoiBuExcel: u.employeeType?.includeInTheoDoiBuExcel ?? true,
     };
   });
 

@@ -637,11 +637,22 @@ export async function buildManagerMonthExcelBuffer(
   daysInMonth: number,
   /** YYYY-MM-DD: ngày lễ do admin; gộp với lễ dương lịch mặc định trong mã. */
   adminHolidayYmd: Set<string> = new Set(),
-  /** userId → «Bù còn lại tháng trước» (sheet Theo dõi bù). */
-  buConLaiThangTruoc: Map<string, number> = new Map()
+  /** userId → «Bù còn lại tháng trước» (sheet Theo dõi bù); chấp nhận Map hoặc mảng theo thứ tự matrixRows (tương thích). */
+  buConLaiThangTruoc: Map<string, number> | number[] = new Map()
 ): Promise<Buffer> {
-  const chamCongRows = matrixRows.filter((r) => r.includeInChamCongExcel);
-  const theoDoiBuRows = matrixRows.filter((r) => r.includeInTheoDoiBuExcel);
+  const chamCongRows = matrixRows.filter((r) => r.includeInChamCongExcel !== false);
+  const theoDoiBuRows = matrixRows.filter((r) => r.includeInTheoDoiBuExcel !== false);
+
+  const buDauForRow = (row: ManagerMonthMatrixRow): number => {
+    if (buConLaiThangTruoc instanceof Map) {
+      return buConLaiThangTruoc.get(row.userId) ?? 0;
+    }
+    if (Array.isArray(buConLaiThangTruoc)) {
+      const idx = matrixRows.indexOf(row);
+      return idx >= 0 ? (buConLaiThangTruoc[idx] ?? 0) : 0;
+    }
+    return 0;
+  };
   const wb = new ExcelJS.Workbook();
   wb.creator = "ChamCong";
   const freezeRows = REPORT_HEADER_ROW_COUNT + 3;
@@ -954,7 +965,7 @@ export async function buildManagerMonthExcelBuffer(
         }
       }
     }
-    const buDau = buConLaiThangTruoc.get(row.userId) ?? 0;
+    const buDau = buDauForRow(row);
     const dataRow = wsBu.getRow(r);
     dataRow.getCell(1).value = idx + 1;
     dataRow.getCell(2).value = row.fullName;

@@ -423,12 +423,18 @@ export function HomeForm({
       });
       if (!res.ok) {
         let msg = "Không xuất được Excel";
+        const ct = res.headers.get("content-type") ?? "";
         try {
-          const j = (await res.json()) as { error?: string };
-          if (j.error === "Forbidden") msg = "Chỉ quản lý mới xuất được";
-          else if (j.error) msg = j.error;
+          if (ct.includes("application/json")) {
+            const j = (await res.json()) as { error?: string };
+            if (j.error === "Forbidden") msg = "Chỉ quản lý mới xuất được";
+            else if (j.error) msg = j.error;
+          } else {
+            const t = await res.text();
+            if (t.length > 0 && t.length < 500) msg = t;
+          }
         } catch {
-          /* blob hoặc text */
+          /* bỏ qua */
         }
         toast.error(msg);
         return;
