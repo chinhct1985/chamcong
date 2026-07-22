@@ -115,9 +115,9 @@ export function AttendanceHelpModal({
                 <span className="font-mono">P</span>, <span className="font-mono">No</span>…).
               </li>
               <li>
-                Hai loại khác nhau: mỗi ngày có hai bản ghi; mã kèm hậu tố{" "}
-                <span className="rounded bg-slate-100 px-1 font-mono text-xs">/2</span> (nửa ngày
-                theo quy ước).
+                Hai loại khác nhau: mỗi ngày có hai bản ghi; ký hiệu hiển thị và xuất Excel
+                dạng <span className="rounded bg-slate-100 px-1 font-mono text-xs">Loại1/Loại2</span>{" "}
+                (ví dụ <span className="font-mono">X/RT</span>).
               </li>
               <li>Không chọn trùng một loại ở cả hai combobox.</li>
             </ul>

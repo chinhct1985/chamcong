@@ -550,9 +550,10 @@ export function HomeForm({
           Gửi bản ghi chấm công
         </h2>
         <p className="mb-4 text-sm text-slate-600">
-          Chọn nhiều ngày trên lịch và tối đa <strong>hai</strong> loại chấm công. 
-          Khi bạn chọn cả hai loại chấm công, hệ thống ghi nhận mỗi loại 
-          + với <strong className="font-mono">/2</strong>.
+          Chọn nhiều ngày trên lịch và tối đa <strong>hai</strong> loại chấm công.
+          Khi chọn cả hai loại, ký hiệu hiển thị dạng{" "}
+          <strong className="font-mono">Loại1/Loại2</strong> (ví dụ{" "}
+          <span className="font-mono">X/RT</span>).
         </p>
         {clientReady && !isManager ? (
           <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
@@ -746,8 +747,8 @@ export function HomeForm({
                   </select>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Chỉ chọn cả hai khi cần hai loại; khi đó mỗi bản ghi dùng mã +
-                  &quot;/2&quot;.
+                  Chỉ chọn cả hai khi cần hai loại trong cùng một ngày; ký hiệu
+                  sẽ là <span className="font-mono">Loại1/Loại2</span>.
                 </p>
               </div>
             )}

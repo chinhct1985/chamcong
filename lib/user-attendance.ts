@@ -98,11 +98,12 @@ export async function listAttendanceEntriesForMonth(
     const dayRows = byDate.get(ymd)!;
     const codes = dayRows.map((r) => r.label + (r.codeSuffix ?? ""));
     const first = dayRows[0]!;
+    const names = dayRows.map((r) => r.name.trim()).filter(Boolean);
     return {
       id: first.id,
       date: ymd,
       optionCode: formatAttendanceCodesForDay(codes),
-      optionName: first.name,
+      optionName: names.join(" · ") || first.name,
     };
   });
 }
@@ -183,7 +184,7 @@ export async function buildManagerMonthAttendanceMatrix(
     ORDER BY e."userId" ASC, e.date ASC, e."optionSlot" ASC, e.id ASC
   `;
 
-  /** Gom mã theo ngày (optionSlot ASC) để nhận diện X+O; hiển thị qua formatAttendanceCodesForDay. */
+  /** Gom mã theo ngày (optionSlot ASC); hiển thị TypeA/TypeB khi 2 loại. */
   const byUserDay = new Map<string, Map<number, string[]>>();
   for (const e of entries) {
     const day = e.date.getUTCDate();

@@ -4,7 +4,7 @@
  * - Giờ + ngày cuối: theo múi Asia/Ho_Chi_Minh tại thời điểm submit.
  *
  * 1 mã: "Ngày [dd/MM/yyyy] [Họ tên] đã khai báo [Mã] vào lúc [HH:mm:ss] [dd/MM/yyyy]"
- * 2 mã: "Ngày [dd/MM/yyyy] [Họ tên] đã khai báo [Mã/2] + [Mã/2] vào lúc [HH:mm:ss] [dd/MM/yyyy]"
+ * 2 mã: "Ngày [dd/MM/yyyy] [Họ tên] đã khai báo [MãA/MãB] vào lúc [HH:mm:ss] [dd/MM/yyyy]"
  */
 export function formatVnDmyFromYmd(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -40,6 +40,6 @@ export function buildAttendanceSubmitLogMessage(
   if (optionLabels.length === 1) {
     return `Ngày ${dayPart} ${fullName} đã khai báo ${optionLabels[0]} ${tail}`;
   }
-  const codes = optionLabels.map((l) => `${l}/2`).join(" + ");
+  const codes = optionLabels.join("/");
   return `Ngày ${dayPart} ${fullName} đã khai báo ${codes} ${tail}`;
 }

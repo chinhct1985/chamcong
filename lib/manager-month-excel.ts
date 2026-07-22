@@ -1,9 +1,10 @@
 import path from "path";
 import ExcelJS from "exceljs";
+import { scoreBaseCodeFromCellText } from "@/lib/attendance-day-display";
+import type { ManagerMonthMatrixRow } from "@/lib/user-attendance";
 
 /** Excel `paperSize` — A4 (tránh const enum khi `isolatedModules`). */
 const EXCEL_PAPER_A4 = 9;
-import type { ManagerMonthMatrixRow } from "@/lib/user-attendance";
 
 /** Ngày lễ dương lịch thường gặp (VN) — mm-dd; không gồm Tết/Hùng (âm lịch). */
 const VN_SOLAR_HOLIDAY_MD = new Set([
@@ -158,7 +159,7 @@ function sheet1DayColumnWidth(
   daysInMonth: number
 ): number {
   let maxChars = 3;
-  for (const x of ["T2", "T7", "CN", "L", "No/2", "P/2", "P, No", "X/2", "X/O"]) {
+  for (const x of ["T2", "T7", "CN", "L", "No/2", "P/2", "X/RT", "P/No", "X/O"]) {
     maxChars = Math.max(maxChars, unicodeCharCount(x));
   }
   for (const row of rows) {
@@ -207,30 +208,14 @@ function sheet2NgayPhatSinhColumnWidth(
   return Math.min(22, Math.max(8, Math.round(w * 10) / 10));
 }
 
-/**
- * Từ chuỗi ô (có thể nhiều mã, cách bởi dấu phẩy): P=1, P/2=0,5. Chỉ đếm token khớp chính xác.
- */
+/** P=1; P/2 hoặc P trong cặp TypeA/TypeB = 0,5. */
 function scorePFromCellText(text: string): number {
-  if (!text || !String(text).trim()) return 0;
-  let t = 0;
-  for (const raw of String(text).split(",")) {
-    const w = raw.trim();
-    if (w === "P/2") t += 0.5;
-    else if (w === "P") t += 1;
-  }
-  return t;
+  return scoreBaseCodeFromCellText(text, "P");
 }
 
-/** No=1, No/2=0,5. */
+/** No=1; No/2 hoặc No trong cặp TypeA/TypeB = 0,5. */
 function scoreNoFromCellText(text: string): number {
-  if (!text || !String(text).trim()) return 0;
-  let t = 0;
-  for (const raw of String(text).split(",")) {
-    const w = raw.trim();
-    if (w === "No/2") t += 0.5;
-    else if (w === "No") t += 1;
-  }
-  return t;
+  return scoreBaseCodeFromCellText(text, "No");
 }
 
 function hasPInCellText(text: string): boolean {
@@ -241,28 +226,14 @@ function hasNoInCellText(text: string): boolean {
   return scoreNoFromCellText(text) > 0;
 }
 
-/** Công bù phát sinh: X=1, X/2=0,5 (chỉ tính ở ngày CN / L, sheet 1). */
+/** Công bù phát sinh: X=1; X/2 hoặc X trong cặp (vd. X/RT, X/O) = 0,5. */
 function scoreXFromCellText(text: string): number {
-  if (!text || !String(text).trim()) return 0;
-  let t = 0;
-  for (const raw of String(text).split(",")) {
-    const w = raw.trim();
-    if (w === "X/2" || w === "X/O") t += 0.5;
-    else if (w === "X") t += 1;
-  }
-  return t;
+  return scoreBaseCodeFromCellText(text, "X");
 }
 
-/** Bù sử dụng: B=1, B/2=0,5. */
+/** Bù sử dụng: B=1; B/2 hoặc B trong cặp TypeA/TypeB = 0,5. */
 function scoreBFromCellText(text: string): number {
-  if (!text || !String(text).trim()) return 0;
-  let t = 0;
-  for (const raw of String(text).split(",")) {
-    const w = raw.trim();
-    if (w === "B/2") t += 0.5;
-    else if (w === "B") t += 1;
-  }
-  return t;
+  return scoreBaseCodeFromCellText(text, "B");
 }
 
 function fillForDataCell(
