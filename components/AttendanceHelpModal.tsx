@@ -123,6 +123,22 @@ export function AttendanceHelpModal({
             </ul>
 
             <h4 className="mb-1.5 mt-4 text-[0.9375rem] font-medium text-slate-800">
+              2.2b. Cài thành ứng dụng (PWA)
+            </h4>
+            <ul className="mb-4 list-inside list-disc space-y-1.5 marker:text-blue-600">
+              <li>
+                <strong>Chrome / Android / máy tính:</strong> bấm{" "}
+                <strong>Cài đặt ứng dụng</strong> (hoặc menu trình duyệt → Cài
+                ứng dụng) khi hệ thống hỗ trợ.
+              </li>
+              <li>
+                <strong>iPhone / iPad:</strong> mở bằng <strong>Safari</strong> →
+                Chia sẻ → <strong>Thêm vào Màn hình chính</strong>.
+              </li>
+              <li>Cần mở bằng HTTPS (hoặc localhost khi thử nghiệm).</li>
+            </ul>
+
+            <h4 className="mb-1.5 mt-4 text-[0.9375rem] font-medium text-slate-800">
               2.3. Gửi
             </h4>
             <p className="mb-4">

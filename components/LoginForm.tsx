@@ -8,6 +8,7 @@ import {
   type LoginFormState,
 } from "@/app/login/actions";
 import { FaceIdLoginIos } from "@/components/FaceIdLoginIos";
+import { InstallAppControl } from "@/components/InstallAppControl";
 
 const initialState: LoginFormState = { error: null };
 
@@ -69,6 +70,10 @@ export function LoginForm() {
         </form>
 
         <FaceIdLoginIos />
+
+        <div className="mt-4">
+          <InstallAppControl />
+        </div>
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Chưa có tài khoản?{" "}

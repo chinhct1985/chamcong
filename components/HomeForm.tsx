@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { AttendanceHelpModal } from "@/components/AttendanceHelpModal";
+import { InstallAppControl } from "@/components/InstallAppControl";
 import { IosPasskeyRegisterSection } from "@/components/IosPasskeyRegisterSection";
 import { useRouter } from "next/navigation";
 import { formatVnDmyFromYmd } from "@/lib/attendance-submit-log";
@@ -525,6 +526,7 @@ export function HomeForm({
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 self-start sm:flex-row sm:items-center">
+          <InstallAppControl compact />
           <button
             type="button"
             onClick={() => setHelpOpen(true)}
